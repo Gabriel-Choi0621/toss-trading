@@ -2,8 +2,8 @@
 
 ## 프로젝트 개요
 토스증권 오픈 API 기반 AI 자동매매 시스템.
-**현재 토스증권 API 미공개** — `collector/toss_api.py`의 `TossAPIInterface`가 Mock으로 대체 중.
-API 공개 시 해당 클래스의 `mock=False` 분기를 구현하면 됨.
+**Mock 단계 프로토타입** — 개발 당시 토스증권 API가 공개 전이라 `collector/toss_api.py`의 `TossAPIInterface`를 Mock으로 구현함.
+실제 연동 시 해당 클래스의 `mock=False` 분기를 구현하면 됨.
 
 ## 디렉토리 구조
 ```
@@ -50,5 +50,5 @@ toss-trading/
 
 ## 주의사항
 - `dry_run=True`가 기본값 — 실전 전환 시 반드시 소액 테스트 먼저
-- 토스증권 API 공개 전까지 `toss.mock_mode: true` 유지
+- 실제 API 연동 구현 전까지 `toss.mock_mode: true` 유지
 - 텔레그램 봇은 `notification/` 폴더에 추가 예정 (미구현)

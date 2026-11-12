@@ -1,0 +1,84 @@
+# config.example.yaml → config.yaml 로 복사한 뒤 키를 채워서 사용하세요.
+# 자동매매 시스템 설정 파일
+# 실제 키는 절대 Git에 커밋하지 마세요!
+
+# ─────────────────────────────────────────────
+# 토스증권 Open API
+# ─────────────────────────────────────────────
+toss:
+  app_key: "YOUR_TOSS_APP_KEY"
+  app_secret: "YOUR_TOSS_APP_SECRET"
+  account_no: "YOUR_ACCOUNT_NO"
+  mock_mode: true  # 실제 API 연동 구현 전까지 true (collector/toss_api.py)
+
+# ─────────────────────────────────────────────
+# Gemini AI (무료 티어 사용)
+# API 키 발급: https://aistudio.google.com/apikey
+# ─────────────────────────────────────────────
+gemini:
+  api_key: "YOUR_GEMINI_API_KEY"
+  model: "gemini-3.1-flash-lite"
+  daily_limit: 500          # 실측 68+회 성공, RPD 한도 미확인 — 보수적 설정
+  rpm_limit: 15             # 무료 티어 분당 한도
+  min_interval_minutes: 5   # 종목당 최소 재판단 간격 (5분)
+
+# ─────────────────────────────────────────────
+# 텔레그램 봇
+# ─────────────────────────────────────────────
+telegram:
+  bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"
+  enabled: false  # 봇 설정 전까지 false
+
+# ─────────────────────────────────────────────
+# 매매 전략
+# ─────────────────────────────────────────────
+trading:
+  dry_run: true                  # 반드시 true로 시작!
+  tickers:
+    - "005930"                   # 삼성전자
+    - "000660"                   # SK하이닉스
+    - "035420"                   # NAVER
+  candle_count: 100              # 버퍼 캔들 수
+  interval_seconds: 300          # 데이터 수집 간격 (5분 = Gemini 무료 한도 맞춤)
+
+  # 매매 시간
+  market_open: "09:00"
+  market_close: "15:30"
+
+  # 리스크 관리
+  risk:
+    max_position_ratio: 0.20     # 단일 종목 최대 비중 20%
+    daily_loss_limit: 0.03       # 일일 최대 손실 3%
+    consecutive_stop_limit: 3    # 연속 손절 횟수 한도
+    cooldown_minutes: 60         # 매매 중단 시간 (분)
+
+  # AI 판단 임계값
+  confidence:
+    auto_execute: 80             # 80+ → 자동 실행
+    ask_human: 60                # 60~79 → 텔레그램 확인
+
+# ─────────────────────────────────────────────
+# 백테스팅
+# ─────────────────────────────────────────────
+backtest:
+  initial_capital: 10_000_000   # 1천만원
+  commission: 0.00015           # 수수료 0.015%
+  start_date: "2024-01-01"
+  end_date: "2024-12-31"
+  use_cache: true               # AI 호출 캐시 사용
+
+# ─────────────────────────────────────────────
+# 데이터베이스
+# ─────────────────────────────────────────────
+database:
+  path: "data/trading.db"
+
+# ─────────────────────────────────────────────
+# 로깅
+# ─────────────────────────────────────────────
+logging:
+  level: "INFO"
+  file: "logs/trading.log"
+  max_bytes: 10_485_760          # 10MB
+  backup_count: 5

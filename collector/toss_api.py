@@ -82,7 +82,7 @@ def generate_ohlcv(
 class TossAPIInterface:
     """
     토스증권 API 추상 인터페이스.
-    현재는 Mock으로 동작하며, API 공개 후 실제 구현으로 교체합니다.
+    현재는 Mock으로 동작하며, 실제 연동 시 이 부분을 구현합니다.
 
     TODO: API 공개 후 구현 필요 항목
       - REST: 현재가 조회, 잔고 조회, 주문 실행, 주문 취소
@@ -112,14 +112,14 @@ class TossAPIInterface:
                 "timestamp": datetime.now().isoformat(),
             }
         # TODO: 실제 REST 구현
-        raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+        raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")
 
     async def get_ohlcv(self, ticker: str, count: int = 100) -> pd.DataFrame:
         """OHLCV 데이터 조회."""
         if self.mock:
             return generate_ohlcv(ticker, count=count)
         # TODO: 실제 REST 구현
-        raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+        raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")
 
     # ── 계좌 / 주문 ────────────────────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ class TossAPIInterface:
                 ],
             }
         # TODO: 실제 REST 구현
-        raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+        raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")
 
     async def place_order(
         self,
@@ -161,7 +161,7 @@ class TossAPIInterface:
                 "timestamp": datetime.now().isoformat(),
             }
         # TODO: 실제 REST 구현
-        raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+        raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")
 
     async def cancel_order(self, order_id: str) -> bool:
         """주문 취소."""
@@ -169,7 +169,7 @@ class TossAPIInterface:
             logger.info(f"[MOCK 취소] order_id={order_id}")
             return True
         # TODO: 실제 REST 구현
-        raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+        raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")
 
     # ── WebSocket 실시간 시세 ──────────────────────────────────────────────────
 
@@ -209,4 +209,4 @@ class TossAPIInterface:
                 await asyncio.sleep(interval_seconds)
         else:
             # TODO: 실제 WebSocket 구현
-            raise NotImplementedError("토스증권 API 미공개 — mock=True 사용")
+            raise NotImplementedError("실제 API 연동 미구현 — mock=True 사용")

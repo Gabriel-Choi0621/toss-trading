@@ -85,7 +85,7 @@ gemini:
   daily_limit: 250    # 무료 티어 하루 250회
   rpm_limit: 10       # 무료 티어 분당 10회
 
-# 토스증권 API (현재 미공개 — mock_mode: true 유지)
+# 토스증권 API (실제 연동 구현 전까지 mock_mode: true 유지)
 toss:
   app_key: "YOUR_APP_KEY_HERE"
   app_secret: "YOUR_APP_SECRET_HERE"
@@ -716,7 +716,7 @@ python -m pytest tests/test_all.py --lf -v
 > **소액(1~10만원)으로 먼저 테스트하세요.**
 
 ```
-□ 1. 토스증권 API 공개 확인 및 앱키·시크릿 발급
+□ 1. 토스증권 Open API 앱키·시크릿 발급
 □ 2. config.yaml의 toss.mock_mode: false 변경
 □ 3. toss.app_key, app_secret 실제값 입력
 □ 4. config.yaml의 trading.dry_run: false 변경
