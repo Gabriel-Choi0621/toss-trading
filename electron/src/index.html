@@ -1,0 +1,2481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toss Trading</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0A1628;
+    --surface: #0D1E38;
+    --surface2: #112040;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #FFFFFF;
+    --text2: rgba(255,255,255,0.5);
+    --text3: rgba(255,255,255,0.25);
+    --mint: #00D4AA;
+    --mint-dim: rgba(0,212,170,0.12);
+    --red: #FF6B6B;
+    --red-dim: rgba(255,107,107,0.12);
+    --amber: #FFB347;
+    --amber-dim: rgba(255,179,71,0.12);
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── 타이틀바 (드래그 가능) ── */
+  .titlebar {
+    -webkit-app-region: drag;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px 11px;
+    gap: 9px;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    flex-wrap: nowrap;
+  }
+  .titlebar button { -webkit-app-region: no-drag; }
+
+  .win-btns { display: flex; gap: 6px; }
+  .win-btn {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .win-btn:hover { opacity: 0.8; }
+  .win-btn.close  { background: #FF5F57; }
+  .win-btn.mini   { background: #FFBD2E; }
+  .win-btn.hud    { background: #28CA41; }
+
+  .app-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+    margin-left: 6px;
+    flex: 1;
+  }
+
+  .dry-badge {
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--amber-dim);
+    color: var(--amber);
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 0.5px solid rgba(255,179,71,0.2);
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+  }
+
+  /* ── 상태바 ── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+  }
+  .ws-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mint);
+    transition: background 0.3s;
+  }
+  .ws-dot.off { background: var(--red); }
+  .ws-dot.connecting { background: var(--amber); animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .ws-label { color: var(--mint); font-size: 11px; }
+  .ws-label.off { color: var(--red); }
+  .market-time { margin-left: auto; color: var(--text3); }
+
+  /* ── 스크롤 가능한 본문 ── */
+  .body {
+    height: calc(100vh - 82px);
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+  .body::-webkit-scrollbar { width: 4px; }
+  .body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+  .body::-webkit-scrollbar-track { background: transparent; }
+
+  /* ── 메트릭 카드 ── */
+  .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .metric-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    border: 0.5px solid var(--border);
+  }
+  .metric-label { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+  .metric-val { font-size: 20px; font-weight: 600; }
+  .metric-val.up { color: var(--mint); }
+  .metric-val.down { color: var(--red); }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .metric-sub.up { color: var(--mint); }
+  .metric-sub.down { color: var(--red); }
+
+  /* ── 섹션 레이블 ── */
+  .sec-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* ── 종목 카드 ── */
+  .ticker-list { display: flex; flex-direction: column; gap: 7px; }
+  .ticker-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    padding: 13px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .ticker-card.flash-buy  { border-color: rgba(0,212,170,0.4); background: rgba(0,212,170,0.04); }
+  .ticker-card.flash-sell { border-color: rgba(255,107,107,0.4); background: rgba(255,107,107,0.04); }
+
+  .ticker-info { min-width: 72px; }
+  .ticker-name { font-size: 13px; font-weight: 500; }
+  .ticker-code { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  .sparkline { flex: 1; height: 32px; }
+
+  .ticker-price-box { text-align: right; min-width: 80px; }
+  .ticker-price { font-size: 14px; font-weight: 500; }
+  .ticker-chg { font-size: 10px; margin-top: 2px; }
+  .ticker-chg.up   { color: var(--mint); }
+  .ticker-chg.down { color: var(--red); }
+
+  .signal-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    min-width: 36px;
+    text-align: center;
+  }
+  .signal-badge.buy  { background: var(--mint-dim); color: var(--mint); }
+  .signal-badge.sell { background: var(--red-dim); color: var(--red); }
+  .signal-badge.hold { background: rgba(255,255,255,0.06); color: var(--text2); }
+
+  /* ── 하단 2열 ── */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    padding: 13px;
+    min-height: 140px;
+    overflow: hidden;
+  }
+  .panel-title { font-size: 11px; color: var(--text3); margin-bottom: 9px; }
+
+  /* ── AI 로그 ── */
+  .log-item {
+    display: flex;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+    line-height: 1.5;
+    cursor: pointer;
+    align-items: baseline;
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { color: var(--text3); min-width: 40px; flex-shrink: 0; }
+  .log-msg  { color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-msg .buy  { color: var(--mint); font-weight: 600; }
+  .log-msg .sell { color: var(--red);  font-weight: 600; }
+  .log-msg .warn { color: var(--amber); }
+
+  /* ── 주문 내역 ── */
+  .order-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+  }
+  .order-item:last-child { border-bottom: none; }
+  .side-badge {
+    width: 20px; height: 16px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600;
+  }
+  .side-badge.b { background: var(--mint-dim); color: var(--mint); }
+  .side-badge.s { background: var(--red-dim);  color: var(--red); }
+  .order-ticker { font-weight: 500; min-width: 46px; }
+  .order-detail { color: var(--text3); flex: 1; }
+  .order-pnl { font-weight: 500; }
+  .order-pnl.pos { color: var(--mint); }
+  .order-pnl.neg { color: var(--red); }
+
+  /* ── 토글 스위치 ── */
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  .toggle-label { font-size: 10px; font-weight: 500; color: var(--text2); }
+  .toggle {
+    position: relative;
+    width: 28px; height: 15px;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.12);
+    transition: background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--mint); }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(13px); }
+
+  /* ── 수동 매수/매도 버튼 ── */
+  .order-btns {
+    display: flex;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+  }
+  .order-btn {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .order-btn:hover { opacity: 0.8; }
+  .order-btn:active { opacity: 0.6; }
+  .order-btn.buy  { background: var(--mint-dim); color: var(--mint); border: 0.5px solid rgba(0,212,170,0.3); }
+  .order-btn.sell { background: var(--red-dim);  color: var(--red);  border: 0.5px solid rgba(255,107,107,0.3); }
+
+  /* ── 상세 모달 ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,22,40,0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 14px;
+    width: 440px;
+    max-height: 660px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(6px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px 10px;
+    border-bottom: 0.5px solid var(--border);
+    gap: 8px;
+  }
+  .modal-ticker { font-size: 14px; font-weight: 600; }
+  .modal-code   { font-size: 11px; color: var(--text3); }
+  .modal-price  { margin-left: auto; font-size: 15px; font-weight: 600; }
+  .modal-close  {
+    background: none; border: none; color: var(--text3);
+    font-size: 16px; cursor: pointer; padding: 0 0 0 8px;
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 12px 16px; overflow-y: auto; scrollbar-width: none; }
+  .modal-body::-webkit-scrollbar { display: none; }
+  .chart-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .candle-canvas { width: 100%; border-radius: 6px; background: var(--surface2); display: block; }
+  .indicator-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .ind-card {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 0.5px solid var(--border);
+  }
+  .ind-name  { font-size: 9px; color: var(--text3); margin-bottom: 3px; }
+  .ind-val   { font-size: 13px; font-weight: 600; }
+  .ind-val.up   { color: var(--mint); }
+  .ind-val.down { color: var(--red); }
+  .ind-val.neutral { color: var(--text2); }
+  .ind-sub   { font-size: 9px; color: var(--text3); margin-top: 1px; }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 14px;
+    border-top: 0.5px solid var(--border);
+  }
+  .modal-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .modal-btn:hover { opacity: 0.85; }
+  .modal-btn.buy-btn  { background: var(--mint); color: #0A1628; }
+  .modal-btn.sell-btn { background: var(--red);  color: white; }
+
+  /* ── 섹션 헤더 (탭 포함) ── */
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .sec-header .sec-label { margin-bottom: 0; }
+  .view-tabs {
+    display: flex;
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    overflow: hidden;
+    -webkit-app-region: no-drag;
+  }
+  .view-tab {
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .view-tab:hover:not(.active) { color: var(--text2); }
+  .view-tab.active { background: var(--surface2); color: var(--text); }
+
+  /* ── 보유 카드 중간 영역 ── */
+  .pos-detail { flex: 1; min-width: 0; padding: 0 4px; }
+  .pos-avg  { font-size: 10px; color: var(--text3); }
+  .pos-eval { font-size: 11px; font-weight: 500; color: var(--text2); margin-top: 2px; }
+  .pos-empty { font-size: 12px; color: var(--text3); }
+
+  /* ── HUD 카드 2줄 레이아웃 ── */
+  .hud-card { flex-direction: column; gap: 2px; padding: 4px 8px; pointer-events: none; }
+  /* HUD 카드 내 핀 버튼만 클릭 허용 */
+  .hud-card .hud-pin-btn { pointer-events: auto; }
+  .hud-row1 { display: flex; align-items: center; gap: 4px; overflow: hidden; min-width: 0; }
+  .hud-row1 .ticker-name { font-size: 11px; flex: 1; }
+  .hud-row1 .ticker-price { font-size: 12px; font-weight: 600; }
+  .hud-row1 .ticker-chg { font-size: 9px; min-width: 44px; text-align: right; }
+  .hud-row2 { display: flex; align-items: center; gap: 5px; overflow: hidden; min-width: 0; }
+  .hud-conf { font-size: 9px; font-weight: 600; color: var(--text2); min-width: 24px; }
+  .hud-reason { font-size: 9px; color: var(--text3); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  /* ── HUD 핀 버튼 (일반 모드 카드) ── */
+  .hud-pin-btn {
+    width: 18px; height: 18px;
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text3);
+    font-size: 9px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .hud-pin-btn:hover { border-color: var(--mint); color: var(--mint); }
+  .hud-pin-btn.pinned { background: rgba(0,212,170,0.12); color: var(--mint); border-color: rgba(0,212,170,0.3); }
+
+  /* ── AI 판단 패널 (모달 내) ── */
+  .judgment-panel {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 0.5px solid var(--border);
+  }
+  .conf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .conf-bar-wrap {
+    flex: 1; height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px; overflow: hidden;
+  }
+  .conf-bar { height: 100%; border-radius: 4px; transition: width 0.4s; }
+  .conf-pct { font-size: 11px; font-weight: 600; min-width: 28px; text-align: right; }
+  .jdg-prices {
+    display: flex; gap: 12px;
+    margin-bottom: 7px;
+  }
+  .jdg-price-item { display: flex; flex-direction: column; gap: 2px; }
+  .jdg-price-label { font-size: 9px; color: var(--text3); }
+  .jdg-price-val { font-size: 12px; font-weight: 600; }
+  .jdg-reason { font-size: 10px; color: var(--text2); line-height: 1.6; }
+
+  /* ── 로그 클릭 효과 ── */
+  .log-item { cursor: pointer; border-radius: 4px; margin: 0 -4px; padding: 5px 4px; }
+  .log-item:hover { background: rgba(255,255,255,0.04); }
+
+  /* ── 주문 입력 모달 ── */
+  .order-modal { width: 290px; }
+  .om-field { margin-bottom: 12px; }
+  .om-label { font-size: 10px; color: var(--text3); margin-bottom: 5px; }
+  .om-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 9px 11px;
+    outline: none;
+    font-family: inherit;
+    -moz-appearance: textfield;
+  }
+  .om-input::-webkit-outer-spin-button,
+  .om-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .om-input:focus { border-color: rgba(255,255,255,0.25); }
+  .om-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0 0;
+    border-top: 0.5px solid var(--border);
+    margin-top: 4px;
+  }
+  .om-total-label { font-size: 11px; color: var(--text3); }
+  .om-total-val { font-size: 14px; font-weight: 600; }
+
+  /* ── HUD 미니 모드 ── */
+  body.hud-mode .titlebar {
+    padding: 6px 10px;
+    min-height: unset;
+    gap: 6px;
+  }
+  body.hud-mode .statusbar { display: none; }
+
+  /* 타이틀바 — HUD에서 불필요한 요소 전부 숨김 */
+  body.hud-mode .app-name       { display: none; }
+  body.hud-mode .toggle-label   { display: none; }
+  body.hud-mode .dry-badge      { display: none; }
+  body.hud-mode #ai-toggle-wrap { display: none; }
+  body.hud-mode .market-toggle  { display: none; }
+  body.hud-mode .model-select   { display: none; }
+  /* auto-toggle 스위치도 HUD에서 숨김 (라벨만 숨기면 어색) */
+  body.hud-mode .toggle-wrap    { display: none; }
+
+  /* HUD 타이틀바: 점 3개 + "HUD" 라벨 + AI 상태만 */
+  body.hud-mode .hud-title-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--text3); letter-spacing: 0.05em;
+    flex: 1;
+  }
+  body.hud-mode .hud-ai-status {
+    font-size: 9px; color: rgba(255,255,255,0.2);
+  }
+
+  body.hud-mode .body {
+    height: calc(100vh - 34px);
+    padding: 5px 6px;
+    gap: 4px;
+    overflow: hidden;
+  }
+  body.hud-mode .ticker-list { gap: 4px; }
+  body.hud-mode .bottom-grid,
+  body.hud-mode .metric-row,
+  body.hud-mode .sec-header,
+  body.hud-mode .sec-label { display: none; }
+
+  /* HUD 카드 — 핀 버튼만 클릭 가능, 나머지는 드래그 영역처럼 */
+  body.hud-mode .ticker-card {
+    cursor: default;
+    pointer-events: none;
+    padding: 7px 10px;
+    border-radius: 8px;
+  }
+  body.hud-mode .hud-card { padding: 6px 10px; }
+  body.hud-mode .sparkline   { display: none; }
+  body.hud-mode .order-btns  { display: none; }
+  body.hud-mode .ticker-code { display: none; }
+  body.hud-mode .ticker-info { min-width: 64px; }
+  body.hud-mode .ticker-name { font-size: 12px; }
+  body.hud-mode .ticker-price { font-size: 13px; }
+  body.hud-mode .signal-badge { font-size: 9px; padding: 2px 6px; }
+  body.hud-mode .ticker-name  { font-size: 11px; }
+  body.hud-mode .ticker-price { font-size: 12px; }
+  body.hud-mode .ticker-chg   { font-size: 9px; margin-top: 0; }
+  body.hud-mode .ticker-price-box { min-width: 62px; }
+  body.hud-mode .signal-badge { font-size: 9px; padding: 2px 5px; min-width: 28px; }
+
+  /* ── 실전 전환 확인 모달 ── */
+  .live-confirm-modal { width: 320px; }
+  .live-warn-box {
+    background: rgba(255,107,107,0.08);
+    border: 0.5px solid rgba(255,107,107,0.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .live-warn-title { font-size: 13px; font-weight: 600; color: var(--red); margin-bottom: 6px; }
+  .live-warn-desc  { font-size: 11px; color: var(--text2); line-height: 1.7; }
+
+  /* ── 토스트 ── */
+  .toast-wrap {
+    position: fixed; bottom: 16px; right: 16px;
+    z-index: 600;
+    display: flex; flex-direction: column; gap: 6px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    padding: 9px 13px;
+    font-size: 11px;
+    max-width: 230px;
+    line-height: 1.5;
+    animation: toast-in 0.2s ease;
+    pointer-events: all;
+  }
+  .toast.success { border-color: rgba(0,212,170,0.4);  color: var(--mint); }
+  .toast.error   { border-color: rgba(255,107,107,0.4); color: var(--red);  }
+  .toast.warn    { border-color: rgba(255,179,71,0.4);  color: var(--amber);}
+  .toast.info    { border-color: var(--border2); color: var(--text2); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── AI 토글 비활성 상태 ── */
+  .toggle-wrap.ai-disabled { opacity: 0.38; pointer-events: none; }
+  #ai-toggle-wrap .toggle input:checked + .toggle-track { background: #9B6DFF; }
+
+  /* ── KR/US 시장 토글 ── */
+  .market-toggle {
+    display: flex;
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    overflow: hidden;
+    -webkit-app-region: no-drag;
+    margin-right: 2px;
+  }
+  .market-btn {
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .market-btn:hover:not(.active) { color: var(--text2); }
+  .market-btn.active { background: var(--surface2); color: var(--text); }
+  body.hud-mode .market-toggle { display: none; }
+
+  /* ── 연결 안됨 오버레이 ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,22,40,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text2);
+    z-index: 100;
+    transition: opacity 0.3s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay-icon { font-size: 32px; }
+  .overlay-sub { font-size: 11px; color: var(--text3); }
+
+  /* ── AI 판단 상태 ── */
+  .ai-state-wrap {
+    display: flex; align-items: center; gap: 4px;
+    margin-left: auto; margin-right: 4px;
+  }
+  .ai-thinking-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #9B6DFF;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .ai-thinking-dot.active { animation: pulse-ai 1.2s ease-in-out infinite; }
+  .ai-thinking-dot.idle { background: rgba(155,109,255,0.35); }
+  .ai-thinking-dot.off { background: rgba(255,255,255,0.15); }
+  @keyframes pulse-ai {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  #ai-state-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    white-space: nowrap;
+  }
+
+  /* ── 거래 내역 패널 ── */
+  .history-item {
+    display: flex; align-items: center;
+    gap: 5px; padding: 4px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 10px;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-ts { font-size: 9px; color: var(--text3); min-width: 34px; }
+  .history-detail { color: var(--text3); flex: 1; font-size: 9px; }
+  .cancel-btn {
+    background: none; border: 0.5px solid rgba(255,107,107,0.3);
+    border-radius: 3px; color: var(--red); font-size: 8px;
+    padding: 1px 4px; cursor: pointer; transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .cancel-btn:hover { opacity: 0.7; }
+  .history-load-more {
+    text-align: center; padding: 6px 0; color: var(--mint);
+    font-size: 10px; cursor: pointer; -webkit-app-region: no-drag;
+  }
+  .history-load-more:hover { opacity: 0.7; }
+
+  /* ── 포지션 한도 에디터 (모달 내) ── */
+  .limit-editor {
+    background: var(--surface2);
+    border-radius: 8px; padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 0.5px solid var(--border);
+  }
+  .limit-editor-title { font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+  .limit-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .limit-field { display: flex; flex-direction: column; gap: 3px; }
+  .limit-label { font-size: 9px; color: var(--text3); }
+  .limit-input {
+    background: var(--surface); border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text);
+    font-size: 12px; font-weight: 600; padding: 5px 8px;
+    outline: none; width: 100%; font-family: inherit;
+    -moz-appearance: textfield;
+  }
+  .limit-input::-webkit-outer-spin-button,
+  .limit-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .limit-input:focus { border-color: rgba(255,255,255,0.25); }
+  .limit-save-btn {
+    width: 100%; margin-top: 8px;
+    background: rgba(255,255,255,0.07); border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text2); font-size: 11px;
+    padding: 6px; cursor: pointer; transition: background 0.15s;
+    font-family: inherit;
+  }
+  .limit-save-btn:hover { background: rgba(255,255,255,0.12); }
+
+  /* ── 가격 알람 (모달 내) ── */
+  .alert-section {
+    margin-bottom: 10px;
+  }
+  .alert-row {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  }
+  .alert-input {
+    flex: 1; background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text); font-size: 12px;
+    font-weight: 600; padding: 5px 8px; outline: none; min-width: 80px;
+    font-family: inherit; -moz-appearance: textfield;
+  }
+  .alert-input::-webkit-outer-spin-button,
+  .alert-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .alert-dir-btn {
+    background: rgba(255,255,255,0.07); border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text2); font-size: 11px; padding: 5px 8px;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .alert-dir-btn.above { background: rgba(0,212,170,0.12); color: var(--mint); border-color: rgba(0,212,170,0.3); }
+  .alert-dir-btn.below { background: rgba(255,107,107,0.12); color: var(--red); border-color: rgba(255,107,107,0.3); }
+  .alert-set-btn {
+    background: rgba(255,179,71,0.12); border: 0.5px solid rgba(255,179,71,0.3);
+    border-radius: 5px; color: var(--amber); font-size: 10px; padding: 5px 8px;
+    cursor: pointer; transition: opacity 0.15s; font-family: inherit;
+  }
+  .alert-set-btn:hover { opacity: 0.7; }
+  .alert-clear-btn {
+    background: none; border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text3); font-size: 10px; padding: 5px 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  .alert-active-info { font-size: 9px; color: var(--amber); margin-top: 4px; }
+
+  /* ── 백테스트 결과 모달 ── */
+  .backtest-modal { width: 360px; }
+  .bt-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .bt-card {
+    background: var(--surface2); border-radius: 6px;
+    padding: 8px 10px; border: 0.5px solid var(--border);
+  }
+  .bt-card-label { font-size: 9px; color: var(--text3); margin-bottom: 3px; }
+  .bt-card-val { font-size: 14px; font-weight: 600; }
+  .bt-card-val.pos { color: var(--mint); }
+  .bt-card-val.neg { color: var(--red); }
+  .bt-card-val.neutral { color: var(--text2); }
+
+  /* ── Gemini 모델 선택 ── */
+  .model-select {
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: 5px; color: var(--text2); font-size: 9px;
+    padding: 2px 4px; cursor: pointer; outline: none;
+    font-family: inherit; -webkit-app-region: no-drag;
+    max-width: 90px;
+  }
+  body.hud-mode .model-select { display: none; }
+
+  /* ── 모달 내 액션 버튼 (보조) ── */
+  .modal-btn-sm {
+    flex: 1; padding: 8px; border-radius: 8px; border: 0.5px solid var(--border2);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    background: var(--surface2); color: var(--text2);
+    transition: opacity 0.15s; font-family: inherit;
+  }
+  .modal-btn-sm:hover { opacity: 0.8; }
+
+  /* ── 리밸런싱 버튼 ── */
+  .rebalance-btn {
+    background: rgba(0,212,170,0.08); border: 0.5px solid rgba(0,212,170,0.2);
+    border-radius: 6px; color: var(--mint); font-size: 10px; font-weight: 600;
+    padding: 5px 10px; cursor: pointer; transition: opacity 0.15s;
+    font-family: inherit; -webkit-app-region: no-drag;
+  }
+  .rebalance-btn:hover { opacity: 0.7; }
+
+  /* ── 패널 탭 (주문/거래내역 전환) ── */
+  .panel-tabs {
+    display: flex; gap: 0; margin-bottom: 8px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .panel-tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--text3); font-size: 10px; padding: 3px 8px 5px;
+    cursor: pointer; font-family: inherit; transition: color 0.15s;
+  }
+  .panel-tab.active { color: var(--text); border-bottom-color: var(--mint); }
+</style>
+</head>
+<body>
+
+<!-- 타이틀바 -->
+<div class="titlebar">
+  <div class="win-btns">
+    <button class="win-btn close"  onclick="api.close()"   title="닫기(트레이)"></button>
+    <button class="win-btn mini"   onclick="api.minimize()" title="최소화"></button>
+    <button class="win-btn hud"    onclick="api.toggleHud()" title="HUD 모드"></button>
+  </div>
+  <span class="app-name">toss-trading</span>
+  <!-- HUD 모드 전용 라벨 (일반 모드에서는 숨겨짐) -->
+  <span class="hud-title-label" style="display:none" id="hud-label">HUD</span>
+
+  <!-- KR/US 시장 토글 -->
+  <div class="market-toggle">
+    <button class="market-btn active" id="market-kr" onclick="setMarket('KR')">KR</button>
+    <button class="market-btn" id="market-us" onclick="setMarket('US')">US</button>
+  </div>
+
+  <!-- 자동매매 토글 -->
+  <label class="toggle-wrap" title="자동매매 ON/OFF">
+    <span class="toggle-label" id="auto-label">수동</span>
+    <span class="toggle">
+      <input type="checkbox" id="auto-toggle" onchange="onAutoTradeToggle(this.checked)">
+      <span class="toggle-track"></span>
+      <span class="toggle-thumb"></span>
+    </span>
+    <span class="toggle-label">자동</span>
+  </label>
+
+  <!-- AI 판단 토글 -->
+  <label class="toggle-wrap" id="ai-toggle-wrap" title="Gemini AI 판단 ON/OFF">
+    <span class="toggle-label" id="ai-label" style="color:rgba(155,109,255,0.7)">AI</span>
+    <span class="toggle">
+      <input type="checkbox" id="ai-toggle" onchange="onAiToggle(this.checked)" checked>
+      <span class="toggle-track"></span>
+      <span class="toggle-thumb"></span>
+    </span>
+  </label>
+
+  <!-- Gemini 모델 선택 -->
+  <select class="model-select" id="model-select" onchange="onModelChange(this.value)" title="Gemini 모델 선택">
+    <option value="gemini-3.1-flash-lite">3.1 Flash-Lite ✦</option>
+    <option value="gemini-2.5-flash-lite">2.5 Flash-Lite</option>
+    <option value="gemini-2.5-flash">2.5 Flash</option>
+    <option value="gemini-2.5-pro">2.5 Pro</option>
+  </select>
+
+  <!-- DRY RUN / 실전 토글 -->
+  <span class="dry-badge" id="run-badge" onclick="onDryRunToggle()" title="클릭하여 모드 전환" style="cursor:pointer">DRY RUN</span>
+</div>
+
+<!-- 상태바 -->
+<div class="statusbar">
+  <div class="ws-dot connecting" id="ws-dot"></div>
+  <span class="ws-label" id="ws-label">연결 중...</span>
+  <span id="tickers-label" style="color:rgba(255,255,255,0.2);font-size:11px">삼성전자 · SK하이닉스 · NAVER</span>
+  <div class="ai-state-wrap" title="AI 판단 상태">
+    <div class="ai-thinking-dot off" id="ai-dot"></div>
+    <span id="ai-state-label">AI 비활성</span>
+  </div>
+  <span id="ai-status" style="font-size:10px;color:rgba(255,255,255,0.25)" title="Gemini 일일 잔여 호출">AI —</span><span id="ai-timer" style="font-size:10px;color:rgba(255,255,255,0.18);margin-left:4px;margin-right:4px;font-variant-numeric:tabular-nums"></span>
+  <span class="market-time" id="clock"></span>
+</div>
+
+<!-- 본문 -->
+<div class="body">
+
+  <!-- 메트릭 -->
+  <div class="metric-row">
+    <div class="metric-card">
+      <div class="metric-label">총 자산</div>
+      <div class="metric-val" id="total-asset" style="font-size:15px">—</div>
+      <div class="metric-sub" id="total-asset-sub"></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">오늘 수익</div>
+      <div class="metric-val up" id="today-pnl">—</div>
+      <div class="metric-sub up" id="today-pnl-pct">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">AI 신호</div>
+      <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap" id="signal-badges">
+        <span class="signal-badge hold">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 종목 -->
+  <div>
+    <div class="sec-header">
+      <div class="sec-label">종목 현황</div>
+      <div style="display:flex;gap:6px;align-items:center;-webkit-app-region:no-drag">
+        <button class="rebalance-btn" onclick="doRebalance()" title="포트폴리오 동일 비중 리밸런싱">⚖️ 리밸런싱</button>
+        <button class="rebalance-btn" style="background:rgba(255,179,71,0.08);border-color:rgba(255,179,71,0.2);color:var(--amber)" onclick="doPreMarket()" title="장 전 준비 (데이터 프리패치 + 포지션 점검)">📊 장 전 준비</button>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tab-market" onclick="setViewMode('market')">시세</button>
+        <button class="view-tab" id="tab-position" onclick="setViewMode('position')">보유</button>
+      </div>
+    </div>
+    <div class="ticker-list" id="ticker-list"></div>
+  </div>
+
+  <!-- 하단 2열 -->
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title">🤖 AI 판단 로그</div>
+      <div id="log-list"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-tabs">
+        <button class="panel-tab active" id="tab-orders" onclick="setOrderTab('orders')">최근 주문</button>
+        <button class="panel-tab" id="tab-history" onclick="setOrderTab('history')">전체 내역</button>
+      </div>
+      <div id="order-list"></div>
+      <div id="history-list" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 상세 모달 -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-ticker" id="modal-name">—</div>
+        <div class="modal-code" id="modal-code">—</div>
+      </div>
+      <div class="modal-price" id="modal-price">—</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- AI 판단 패널 (로그 클릭 시 노출) -->
+      <div class="judgment-panel" id="modal-judgment" style="display:none">
+        <div class="conf-row">
+          <span class="signal-badge" id="jdg-badge">—</span>
+          <div class="conf-bar-wrap"><div class="conf-bar" id="jdg-bar"></div></div>
+          <span class="conf-pct" id="jdg-conf">—</span>
+        </div>
+        <div class="jdg-prices">
+          <div class="jdg-price-item">
+            <span class="jdg-price-label">목표가</span>
+            <span class="jdg-price-val" id="jdg-target" style="color:var(--mint)">—</span>
+          </div>
+          <div class="jdg-price-item">
+            <span class="jdg-price-label">손절가</span>
+            <span class="jdg-price-val" id="jdg-stop" style="color:var(--red)">—</span>
+          </div>
+        </div>
+        <div class="jdg-reason" id="jdg-reason"></div>
+      </div>
+      <div class="chart-label">캔들차트 (1분봉)</div>
+      <canvas class="candle-canvas" id="candle-canvas" height="160"></canvas>
+      <div class="indicator-grid">
+        <div class="ind-card">
+          <div class="ind-name">RSI (14)</div>
+          <div class="ind-val neutral" id="ind-rsi">—</div>
+          <div class="ind-sub" id="ind-rsi-sub">—</div>
+        </div>
+        <div class="ind-card">
+          <div class="ind-name">MACD</div>
+          <div class="ind-val neutral" id="ind-macd">—</div>
+          <div class="ind-sub" id="ind-macd-sub">—</div>
+        </div>
+        <div class="ind-card">
+          <div class="ind-name">볼린저밴드</div>
+          <div class="ind-val neutral" id="ind-bb">—</div>
+          <div class="ind-sub" id="ind-bb-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body" style="border-top:0.5px solid var(--border);padding-top:10px">
+      <!-- 손절가·목표가 수동 수정 -->
+      <div class="limit-editor" id="limit-editor">
+        <div class="limit-editor-title">📌 손절가 · 목표가 수동 설정</div>
+        <div class="limit-inputs">
+          <div class="limit-field">
+            <div class="limit-label" style="color:var(--red)">손절가</div>
+            <input class="limit-input" type="number" id="limit-stop" placeholder="0" step="10" min="0">
+          </div>
+          <div class="limit-field">
+            <div class="limit-label" style="color:var(--mint)">목표가</div>
+            <input class="limit-input" type="number" id="limit-target" placeholder="0" step="10" min="0">
+          </div>
+        </div>
+        <button class="limit-save-btn" onclick="saveLimits()">저장</button>
+      </div>
+      <!-- 가격 알람 -->
+      <div class="alert-section">
+        <div class="sec-label" style="margin-bottom:6px">⏰ 가격 알람</div>
+        <div class="alert-row">
+          <button class="alert-dir-btn above" id="alert-dir" onclick="toggleAlertDir()">↑ 이상</button>
+          <input class="alert-input" type="number" id="alert-price" placeholder="알람 가격" step="10" min="0">
+          <button class="alert-set-btn" onclick="setAlert()">설정</button>
+          <button class="alert-clear-btn" onclick="clearAlert()">해제</button>
+        </div>
+        <div class="alert-active-info" id="alert-info"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-sm" onclick="runBacktest()">📈 백테스트</button>
+      <button class="modal-btn buy-btn"  onclick="manualOrder('BUY')">매수</button>
+      <button class="modal-btn sell-btn" onclick="manualOrder('SELL')">매도</button>
+    </div>
+  </div>
+</div>
+
+<!-- 주문 입력 모달 -->
+<div class="modal-overlay" id="order-modal-overlay" onclick="closeOrderModal(event)">
+  <div class="modal order-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-ticker" id="om-name">—</div>
+        <div class="modal-code" id="om-code">—</div>
+      </div>
+      <span class="signal-badge" id="om-badge">BUY</span>
+      <button class="modal-close" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="om-field" style="margin-bottom:8px">
+        <label class="toggle-wrap" style="gap:6px">
+          <span class="toggle-label" style="font-size:10px;color:var(--text3)">지정가</span>
+          <span class="toggle">
+            <input type="checkbox" id="om-market-toggle" onchange="onMarketOrderToggle(this.checked)">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </span>
+          <span class="toggle-label" style="font-size:10px;color:var(--amber)">시장가</span>
+        </label>
+      </div>
+      <div class="om-field" id="om-price-field">
+        <div class="om-label" id="om-price-label">가격 (원)</div>
+        <input class="om-input" type="number" id="om-price" step="10" min="0" oninput="updateOrderTotal()">
+      </div>
+      <div class="om-field">
+        <div class="om-label" style="display:flex;justify-content:space-between">
+          <span>수량 (주)</span>
+          <span id="om-max-label" style="color:var(--mint);cursor:pointer" onclick="setMaxQty()">최대 —주</span>
+        </div>
+        <input class="om-input" type="number" id="om-qty" step="1" min="1" value="1" oninput="updateOrderTotal()">
+      </div>
+      <div class="om-total-row">
+        <span class="om-total-label">예수금 <span id="om-cash" style="color:var(--text2)">—</span></span>
+        <span class="om-total-val" id="om-total">—</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" style="background:var(--surface2);color:var(--text2);border:0.5px solid var(--border2)" onclick="closeOrderModal()">취소</button>
+      <button class="modal-btn" id="om-confirm-btn" onclick="confirmOrder()">주문하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 실전 전환 확인 모달 -->
+<div class="modal-overlay" id="live-confirm-overlay" onclick="cancelLiveMode(event)">
+  <div class="modal live-confirm-modal">
+    <div class="modal-header">
+      <div class="modal-ticker" style="color:var(--red)">실전 전환 확인</div>
+      <button class="modal-close" onclick="cancelLiveMode()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="live-warn-box">
+        <div class="live-warn-title">⚠ 실제 자금이 사용됩니다</div>
+        <div class="live-warn-desc">
+          DRY RUN 모드를 해제하면 AI 신호에 따라<br>
+          실제 계좌에서 매매가 실행됩니다.<br>
+          잘못된 주문은 실제 손실로 이어질 수 있습니다.
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">현재 설정을 확인하세요</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.8">
+        자동매매: <span id="lc-auto" style="font-weight:600"></span><br>
+        API 모드: <span id="lc-mock" style="font-weight:600"></span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" style="background:var(--surface2);color:var(--text2);border:0.5px solid var(--border2)" onclick="cancelLiveMode()">취소</button>
+      <button class="modal-btn" style="background:var(--red);color:white" onclick="confirmLiveMode()">실전으로 전환</button>
+    </div>
+  </div>
+</div>
+
+<!-- 시장 전환 확인 모달 -->
+<div class="modal-overlay" id="market-confirm-overlay" onclick="cancelMarketSwitch(event)">
+  <div class="modal live-confirm-modal">
+    <div class="modal-header">
+      <div class="modal-ticker" id="mc-title" style="color:var(--mint)">시장 전환 확인</div>
+      <button class="modal-close" onclick="cancelMarketSwitch()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(0,212,170,0.06);border:0.5px solid rgba(0,212,170,0.2);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--mint);margin-bottom:6px" id="mc-headline">🌐 미국 시장으로 전환</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.7" id="mc-desc">
+          데이터 수집기가 재시작되고<br>AI가 해당 시장 기준으로 판단합니다.<br>기존 AI 로그와 주문 내역은 초기화됩니다.
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">전환 후 종목</div>
+      <div style="font-size:12px;color:var(--text);font-weight:500;line-height:2" id="mc-tickers">—</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" style="background:var(--surface2);color:var(--text2);border:0.5px solid var(--border2)" onclick="cancelMarketSwitch()">취소</button>
+      <button class="modal-btn" id="mc-confirm-btn" style="background:var(--mint);color:#0A1628" onclick="confirmMarketSwitch()">전환하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 백테스트 결과 모달 -->
+<div class="modal-overlay" id="backtest-overlay" onclick="closeBacktestModal(event)">
+  <div class="modal backtest-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-ticker" id="bt-title">백테스트 결과</div>
+        <div class="modal-code" id="bt-sub">규칙 기반 (RSI + MACD + 볼린저밴드)</div>
+      </div>
+      <button class="modal-close" onclick="closeBacktestModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="bt-result-grid">
+        <div class="bt-card">
+          <div class="bt-card-label">총 수익률</div>
+          <div class="bt-card-val" id="bt-return">—</div>
+        </div>
+        <div class="bt-card">
+          <div class="bt-card-label">승률</div>
+          <div class="bt-card-val" id="bt-winrate">—</div>
+        </div>
+        <div class="bt-card">
+          <div class="bt-card-label">거래 횟수</div>
+          <div class="bt-card-val neutral" id="bt-trades">—</div>
+        </div>
+        <div class="bt-card">
+          <div class="bt-card-label">Profit Factor</div>
+          <div class="bt-card-val" id="bt-pf">—</div>
+        </div>
+        <div class="bt-card">
+          <div class="bt-card-label">MDD</div>
+          <div class="bt-card-val neg" id="bt-mdd">—</div>
+        </div>
+        <div class="bt-card">
+          <div class="bt-card-label">샤프 지수</div>
+          <div class="bt-card-val neutral" id="bt-sharpe">—</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);line-height:1.6;padding:4px 0" id="bt-detail"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" style="background:var(--surface2);color:var(--text2);border:0.5px solid var(--border2)" onclick="closeBacktestModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 컨테이너 -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- 연결 오버레이 -->
+<div class="overlay" id="overlay">
+  <div class="overlay-icon">🔌</div>
+  <div>Python 서버에 연결 중...</div>
+  <div class="overlay-sub">python main.py 를 먼저 실행하세요</div>
+</div>
+
+<script>
+// ── 상태 ──────────────────────────────────────────────────────────────────────
+// ── 종목 이름 사전 ────────────────────────────────────────────────────────────
+const KR_TICKER_NAMES = { '005930': '삼성전자', '000660': 'SK하이닉스', '035420': 'NAVER' }
+const US_TICKER_NAMES = { 'AAPL': 'Apple', 'TSLA': 'Tesla', 'NVDA': 'NVIDIA' }
+
+function makeTickers(codes, namesMap) {
+  const result = {}
+  codes.forEach(code => {
+    result[code] = {
+      name: namesMap[code] || code,
+      price: 0, prevPrice: 0, change: 0,
+      signal: 'HOLD', confidence: 0,
+      points: [], hudPinned: true,
+      qty: 0, avgPrice: 0,
+    }
+  })
+  return result
+}
+
+const state = {
+  tickers: makeTickers(Object.keys(KR_TICKER_NAMES), KR_TICKER_NAMES),
+  totalAsset: 0,
+  todayPnl: 0,
+  cash: 0,
+  logs: [],
+  orders: [],
+  ordersHistory: [],
+  connected: false,
+  autoTrade: false,
+  useAi: true,
+  dryRun: true,
+  mockMode: true,
+  market: 'KR',
+  modalTicker: null,
+  modalJudgment: null,
+  orderModal: { ticker: null, side: null },
+  hudMode: false,
+  viewMode: 'market',
+  orderTabMode: 'orders',       // 'orders' | 'history'
+  aiThinking: false,            // AI 판단 중 여부
+  aiLastTicker: '',             // 마지막 판단 종목
+  aiLastTime: null,             // 마지막 판단 시각 (Date)
+  alertDir: 'above',            // 현재 알람 방향 설정
+  priceAlerts: {},              // {ticker: {price, direction}}
+  isMarketOrder: false,         // 시장가 주문 여부
+}
+
+// ── 가격 포맷 ─────────────────────────────────────────────────────────────────
+function formatPrice(price, market) {
+  if (!price && price !== 0) return '—'
+  const m = market || state.market
+  if (m === 'US') {
+    return '$' + Number(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  return Number(price).toLocaleString() + '원'
+}
+
+// ── 시계 ──────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date()
+  const hh = String(now.getHours()).padStart(2,'0')
+  const mm = String(now.getMinutes()).padStart(2,'0')
+  let isMarket
+  if (state.market === 'US') {
+    const h = now.getHours(), m = now.getMinutes()
+    isMarket = (h === 23 && m >= 30) || h < 6 || (h === 6 && m === 0)
+  } else {
+    isMarket = now.getHours() >= 9 && (now.getHours() < 15 || (now.getHours() === 15 && now.getMinutes() <= 30))
+  }
+  document.getElementById('clock').textContent = (isMarket ? '장중  ' : '장외  ') + hh + ':' + mm
+}
+setInterval(updateClock, 1000)
+updateClock()
+
+// ── WebSocket 상태 ────────────────────────────────────────────────────────────
+api.onWsStatus((status) => {
+  const dot = document.getElementById('ws-dot')
+  const label = document.getElementById('ws-label')
+  const overlay = document.getElementById('overlay')
+
+  if (status === 'connected') {
+    dot.className = 'ws-dot'
+    label.className = 'ws-label'
+    label.textContent = '실행 중'
+    overlay.classList.add('hidden')
+    state.connected = true
+  } else {
+    dot.className = 'ws-dot off'
+    label.className = 'ws-label off'
+    label.textContent = '연결 끊김'
+    overlay.classList.remove('hidden')
+    state.connected = false
+  }
+})
+
+// ── 마켓 데이터 수신 ─────────────────────────────────────────────────────────
+api.onMarketData((msg) => {
+  if (msg.type === 'tick') {
+    const t = state.tickers[msg.ticker]
+    if (!t) return
+    t.prevPrice = t.price || msg.price
+    t.price = msg.price
+    t.change = ((msg.price - t.prevPrice) / t.prevPrice * 100)
+    t.points.push(msg.price)
+    if (t.points.length > 40) t.points.shift()
+    renderTickerCard(msg.ticker)
+  }
+  if (msg.type === 'signal') {
+    const t = state.tickers[msg.ticker]
+    if (t) { t.signal = msg.signal; t.confidence = msg.confidence }
+    addLog(msg)
+    renderSignalBadges()
+    renderTickerCard(msg.ticker)
+    flashCard(msg.ticker, msg.signal)
+  }
+  if (msg.type === 'order') {
+    state.orders.unshift(msg)
+    if (state.orders.length > 10) state.orders.pop()
+    renderOrders()
+  }
+  if (msg.type === 'balance') {
+    state.totalAsset = msg.total_asset
+    state.todayPnl = msg.today_pnl || 0
+    state.cash = msg.cash || 0
+    if (msg.positions) {
+      msg.positions.forEach(p => {
+        const t = state.tickers[p.ticker]
+        if (t) { t.qty = p.qty; t.avgPrice = p.avg_price }
+      })
+    }
+    renderMetrics()
+    // balance 수신 = Python 연결 확인 → 오버레이 제거
+    const overlay = document.getElementById('overlay')
+    overlay.classList.add('hidden')
+    document.getElementById('ws-dot').className = 'ws-dot'
+    document.getElementById('ws-label').className = 'ws-label'
+    document.getElementById('ws-label').textContent = '실행 중'
+  }
+  if (msg.type === 'notification') {
+    showToast(msg.message, msg.ntype || 'info', msg.duration || 3500)
+  }
+  if (msg.type === 'ai_status') {
+    updateAiStatus(msg.remaining, msg.daily, msg.limit, msg.last_ticker, msg.last_time)
+  }
+  if (msg.type === 'ai_thinking') {
+    state.aiThinking = true
+    state.aiLastTicker = msg.ticker || ''
+    updateAiState()
+  }
+  if (msg.type === 'orders_history') {
+    state.ordersHistory = msg.orders || []
+    renderHistoryList()
+  }
+  if (msg.type === 'backtest_result') {
+    showBacktestResult(msg)
+  }
+  if (msg.type === 'price_alert') {
+    // 알람 발동 → 해당 종목 알람 상태 해제
+    if (state.priceAlerts[msg.ticker]) {
+      state.priceAlerts[msg.ticker].triggered = true
+    }
+    if (state.modalTicker === msg.ticker) updateAlertInfo(msg.ticker)
+  }
+  if (msg.type === 'rebalance_result') {
+    // 리밸런싱 결과 (이미 토스트로 표시됨)
+  }
+})
+
+// ── HUD 모드 ──────────────────────────────────────────────────────────────────
+api.onHudMode((isHud) => {
+  state.hudMode = isHud
+  document.body.classList.toggle('hud-mode', isHud)
+
+  // HUD 전용 라벨 / 앱명 전환
+  const hudLabel = document.getElementById('hud-label')
+  const appName  = document.querySelector('.app-name')
+  if (hudLabel) hudLabel.style.display = isHud ? '' : 'none'
+  if (appName)  appName.style.display  = isHud ? 'none' : ''
+
+  if (isHud) {
+    document.getElementById('modal-overlay').classList.remove('open')
+    document.getElementById('order-modal-overlay').classList.remove('open')
+    document.getElementById('live-confirm-overlay').classList.remove('open')
+    document.getElementById('market-confirm-overlay').classList.remove('open')
+    document.getElementById('backtest-overlay').classList.remove('open')
+    state.modalTicker = null
+    state.modalJudgment = null
+    _pendingMarket = null
+  }
+  renderAllTickers()
+})
+
+// ── 렌더링 ───────────────────────────────────────────────────────────────────
+function renderMetrics() {
+  const asset = state.totalAsset
+  const wan = Math.floor(asset / 10000)
+  document.getElementById('total-asset').textContent = wan > 0 ? wan.toLocaleString() + '만원' : asset.toLocaleString() + '원'
+  document.getElementById('total-asset-sub').textContent = wan > 0 ? asset.toLocaleString() + '원' : ''
+  const pnlEl = document.getElementById('today-pnl')
+  const pctEl = document.getElementById('today-pnl-pct')
+  const pnl = state.todayPnl
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toLocaleString()
+  pnlEl.className = 'metric-val ' + (pnl >= 0 ? 'up' : 'down')
+  const pct = state.totalAsset > 0 ? (pnl / (state.totalAsset - pnl) * 100).toFixed(2) : '0.00'
+  pctEl.textContent = (pnl >= 0 ? '+' : '') + pct + '%'
+  pctEl.className = 'metric-sub ' + (pnl >= 0 ? 'up' : 'down')
+}
+
+function renderSignalBadges() {
+  const el = document.getElementById('signal-badges')
+  el.innerHTML = Object.values(state.tickers).map(t =>
+    `<span class="signal-badge ${t.signal.toLowerCase()}">${t.signal}</span>`
+  ).join('')
+}
+
+function renderTickerCard(ticker) {
+  if (state.hudMode) { renderHudTickers(); return }
+  if (state.viewMode === 'position') { renderPositionCards(); return }
+
+  const t = state.tickers[ticker]
+  const el = document.getElementById('tc-' + ticker)
+  if (!el) { renderAllTickers(); return }
+
+  el.querySelector('.ticker-price').textContent = t.price ? formatPrice(t.price) : '—'
+  const chgEl = el.querySelector('.ticker-chg')
+  const chg = t.change || 0
+  chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'
+  chgEl.className = 'ticker-chg ' + (chg >= 0 ? 'up' : 'down')
+  el.querySelector('.signal-badge').className = 'signal-badge ' + t.signal.toLowerCase()
+  el.querySelector('.signal-badge').textContent = t.signal
+  drawSparkline(el.querySelector('.sparkline'), t.points, t.signal)
+}
+
+function setViewMode(mode) {
+  state.viewMode = mode
+  document.getElementById('tab-market').classList.toggle('active', mode === 'market')
+  document.getElementById('tab-position').classList.toggle('active', mode === 'position')
+  renderAllTickers()
+}
+
+function renderAllTickers() {
+  if (state.hudMode) { renderHudTickers(); return }
+  if (state.viewMode === 'position') { renderPositionCards(); return }
+
+  const list = document.getElementById('ticker-list')
+  list.innerHTML = Object.entries(state.tickers).map(([code, t]) => `
+    <div class="ticker-card" id="tc-${code}" onclick="openModal('${code}')" style="cursor:pointer">
+      <div class="ticker-info">
+        <div class="ticker-name">${t.name}</div>
+        <div class="ticker-code">${code}</div>
+      </div>
+      <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+      <div class="ticker-price-box">
+        <div class="ticker-price">${t.price ? formatPrice(t.price) : '—'}</div>
+        <div class="ticker-chg ${t.change >= 0 ? 'up' : 'down'}">${t.price ? (t.change >= 0 ? '+' : '') + t.change.toFixed(2) + '%' : '—'}</div>
+      </div>
+      <span class="signal-badge ${t.signal.toLowerCase()}">${t.signal}</span>
+      <div class="order-btns" onclick="event.stopPropagation()">
+        <button class="hud-pin-btn ${t.hudPinned ? 'pinned' : ''}" onclick="toggleHudPin('${code}',event)" title="${t.hudPinned ? 'HUD 고정 해제' : 'HUD에 고정'}">핀</button>
+        <button class="order-btn buy"  onclick="sendManualOrder('${code}','BUY')">B</button>
+        <button class="order-btn sell" onclick="sendManualOrder('${code}','SELL')">S</button>
+      </div>
+    </div>
+  `).join('')
+  Object.entries(state.tickers).forEach(([code, t]) => {
+    const svg = document.querySelector('#tc-' + code + ' .sparkline')
+    if (svg) drawSparkline(svg, t.points, t.signal)
+  })
+}
+
+function renderPositionCards() {
+  const list = document.getElementById('ticker-list')
+  list.innerHTML = Object.entries(state.tickers).map(([code, t]) => {
+    const qty = t.qty || 0
+    const avgPrice = t.avgPrice || 0
+    const evalAmount = qty * (t.price || 0)
+    const pnlPct = qty > 0 && avgPrice > 0 ? ((t.price - avgPrice) / avgPrice * 100) : 0
+    const pnlCls = pnlPct >= 0 ? 'up' : 'down'
+    return `
+    <div class="ticker-card" id="tc-${code}" onclick="openModal('${code}')" style="cursor:pointer">
+      <div class="ticker-info">
+        <div class="ticker-name">${t.name}</div>
+        <div class="ticker-code" style="${qty > 0 ? 'color:var(--mint)' : ''}">${qty > 0 ? qty + '주' : '미보유'}</div>
+      </div>
+      <div class="pos-detail">
+        ${qty > 0 ? `
+          <div class="pos-avg">평균 ${formatPrice(avgPrice)}</div>
+          <div class="pos-eval">${formatPrice(evalAmount)}</div>
+        ` : '<div class="pos-empty">—</div>'}
+      </div>
+      <div class="ticker-price-box">
+        <div class="ticker-price">${t.price ? formatPrice(t.price) : '—'}</div>
+        <div class="ticker-chg ${pnlCls}">${qty > 0 && t.price ? (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%' : (t.change ? (t.change >= 0 ? '+' : '') + t.change.toFixed(2) + '%' : '—')}</div>
+      </div>
+      <span class="signal-badge ${t.signal.toLowerCase()}">${t.signal}</span>
+      <div class="order-btns" onclick="event.stopPropagation()">
+        <button class="hud-pin-btn ${t.hudPinned ? 'pinned' : ''}" onclick="toggleHudPin('${code}',event)" title="${t.hudPinned ? 'HUD 고정 해제' : 'HUD에 고정'}">핀</button>
+        <button class="order-btn buy"  onclick="sendManualOrder('${code}','BUY')">B</button>
+        <button class="order-btn sell" onclick="sendManualOrder('${code}','SELL')">S</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function renderHudTickers() {
+  const list = document.getElementById('ticker-list')
+  const pinned = Object.entries(state.tickers).filter(([, t]) => t.hudPinned)
+
+  if (pinned.length === 0) {
+    list.innerHTML = `<div style="font-size:10px;color:var(--text3);text-align:center;padding:16px 0">고정된 종목 없음<br><span style="font-size:9px">일반 모드에서 H 버튼으로 추가</span></div>`
+    return
+  }
+
+  list.innerHTML = pinned.map(([code, t]) => {
+    const chg = t.change || 0
+    const log  = state.logs.find(l => l.ticker === code)
+    const reason = log?.reason || '—'
+    const conf   = t.confidence || 0
+    const sigCls = t.signal.toLowerCase()
+    return `
+    <div class="ticker-card hud-card" id="tc-${code}">
+      <div class="hud-row1">
+        <span class="ticker-name">${t.name}</span>
+        <span class="ticker-price">${t.price ? formatPrice(t.price) : '—'}</span>
+        <span class="ticker-chg ${chg >= 0 ? 'up' : 'down'}">${t.price ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—'}</span>
+        <button class="hud-pin-btn pinned" onclick="toggleHudPin('${code}',event)" title="HUD 고정 해제">핀</button>
+      </div>
+      <div class="hud-row2">
+        <span class="signal-badge ${sigCls}" style="font-size:8px;padding:1px 5px;min-width:26px">${t.signal}</span>
+        <span class="hud-conf">${conf}%</span>
+        <span class="hud-reason">${reason}</span>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function toggleHudPin(code, event) {
+  event.stopPropagation()
+  const t = state.tickers[code]
+  if (!t) return
+  t.hudPinned = !t.hudPinned
+  renderAllTickers()
+}
+
+function drawSparkline(svg, points, signal) {
+  if (!points || points.length < 2) return
+  const W = 100, H = 30
+  const min = Math.min(...points), max = Math.max(...points)
+  const range = max - min || 1
+  const pts = points.map((v, i) => {
+    const x = (i / (points.length - 1)) * W
+    const y = H - ((v - min) / range) * (H - 4) - 2
+    return x.toFixed(1) + ',' + y.toFixed(1)
+  }).join(' ')
+  const color = signal === 'BUY' ? '#00D4AA' : signal === 'SELL' ? '#FF6B6B' : 'rgba(255,255,255,0.2)'
+  const lastPt = points.map((v, i) => {
+    const x = (i / (points.length - 1)) * W
+    const y = H - ((v - min) / range) * (H - 4) - 2
+    return { x, y }
+  })
+  const fillPts = pts + ` ${lastPt[lastPt.length-1].x.toFixed(1)},${H} 0,${H}`
+  svg.innerHTML = `
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${signal === 'BUY' ? `<polygon points="${fillPts}" fill="rgba(0,212,170,0.08)" stroke="none"/>` : ''}
+  `
+}
+
+function addLog(msg) {
+  const now = new Date()
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')
+  state.logs.unshift({ time, ...msg })
+  if (state.logs.length > 8) state.logs.pop()
+  _lastJudgeTs = Date.now()   // 판단 발생 시 타이머 리셋
+  renderLogs()
+  updateAiTimer()
+}
+
+// AI 판단 쿨다운: config의 min_interval_minutes와 동기화 (기본 5분)
+let _aiIntervalSec = 300
+// 마지막 AI 판단 타임스탬프 (모든 종목 통합 — 가장 최근 판단 기준)
+let _lastJudgeTs = 0
+
+function renderLogs() {
+  const el = document.getElementById('log-list')
+  if (!el) return
+  el.innerHTML = state.logs.map((l, i) => {
+    const cls = l.signal === 'BUY' ? 'buy' : l.signal === 'SELL' ? 'sell' : 'warn'
+    const name = state.tickers[l.ticker]?.name || l.ticker
+    return `<div class="log-item" onclick="openModalFromLog(${i})">
+      <span class="log-time">${l.time}</span>
+      <span class="log-msg"><span class="${cls}">${name} ${l.signal}</span> ${l.confidence}% — ${(l.reason||'').slice(0,28)}</span>
+    </div>`
+  }).join('')
+}
+
+function updateAiTimer() {
+  const el = document.getElementById('ai-timer')
+  if (!el) return
+  if (!_lastJudgeTs || !state.useAi) { el.textContent = ''; return }
+  const elapsed = Math.floor((Date.now() - _lastJudgeTs) / 1000)
+  const remaining = _aiIntervalSec - elapsed
+  if (remaining <= 0) {
+    el.textContent = '·'
+    el.style.color = 'rgba(0,212,170,0.5)'
+    el.title = '다음 판단 대기 중'
+  } else {
+    const m = Math.floor(remaining / 60)
+    const s = remaining % 60
+    el.textContent = `· ${m}:${String(s).padStart(2, '0')}`
+    el.style.color = 'rgba(255,255,255,0.18)'
+    el.title = `다음 AI 판단까지 ${m}분 ${s}초`
+  }
+}
+
+// 1초마다 타이머 갱신
+setInterval(updateAiTimer, 1000)
+
+function openModalFromLog(index) {
+  const l = state.logs[index]
+  if (!l) return
+  openModal(l.ticker, l)
+}
+
+function renderOrders() {
+  const el = document.getElementById('order-list')
+  el.innerHTML = state.orders.map(o => {
+    const pnl = o.pnl || 0
+    return `<div class="order-item">
+      <span class="side-badge ${o.side==='BUY'?'b':'s'}">${o.side==='BUY'?'B':'S'}</span>
+      <span class="order-ticker">${o.ticker}</span>
+      <span class="order-detail">${o.qty}주 · ${o.price?.toLocaleString()}원</span>
+      <span class="order-pnl ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toLocaleString()}</span>
+    </div>`
+  }).join('')
+}
+
+function flashCard(ticker, signal) {
+  const el = document.getElementById('tc-' + ticker)
+  if (!el) return
+  el.classList.add(signal === 'BUY' ? 'flash-buy' : 'flash-sell')
+  setTimeout(() => el.classList.remove('flash-buy', 'flash-sell'), 2000)
+}
+
+// ── Mock 초기 데이터 (Python 연결 전 미리보기) ─────────────────────────────────
+function updateTickersLabel() {
+  const names = Object.values(state.tickers).map(t => t.name)
+  document.getElementById('tickers-label').textContent = names.join(' · ')
+}
+
+function loadMockInitial() {
+  if (!state.tickers['005930']) {
+    state.tickers = makeTickers(Object.keys(KR_TICKER_NAMES), KR_TICKER_NAMES)
+  }
+  const prices = { '005930': 75400, '000660': 183500, '035420': 221000 }
+  Object.entries(prices).forEach(([code, price]) => {
+    const t = state.tickers[code]
+    if (!t) return
+    const pts = Array.from({length: 20}, () => price * (1 + (Math.random() - 0.5) * 0.01))
+    t.price = price; t.points = pts; t.change = (Math.random() - 0.4) * 2
+  })
+  if (state.tickers['005930']) { state.tickers['005930'].signal = 'BUY'; state.tickers['005930'].confidence = 84; state.tickers['005930'].qty = 13; state.tickers['005930'].avgPrice = 74200 }
+  if (state.tickers['000660']) { state.tickers['000660'].qty = 3;  state.tickers['000660'].avgPrice = 185000 }
+  if (state.tickers['035420']) { state.tickers['035420'].qty = 0;  state.tickers['035420'].avgPrice = 0 }
+  state.totalAsset = 10_243_500; state.todayPnl = 243_500; state.cash = 8_750_000
+
+  state.orders = [
+    { side: 'BUY',  ticker: '005930', qty: 13, price: 75400, pnl: 32400 },
+    { side: 'SELL', ticker: '035420', qty: 5,  price: 219500, pnl: 47500 },
+    { side: 'BUY',  ticker: '000660', qty: 3,  price: 185000, pnl: -4500 },
+  ]
+
+  updateTickersLabel()
+  renderAllTickers()
+  renderMetrics()
+  renderSignalBadges()
+  renderLogs()
+  renderOrders()
+  updateAiStatus(1476, 24, 1500, '005930', new Date(Date.now() - 3 * 60000).toISOString())
+}
+
+function loadUsMock() {
+  if (!state.tickers['AAPL']) {
+    state.tickers = makeTickers(Object.keys(US_TICKER_NAMES), US_TICKER_NAMES)
+  }
+  const prices = { 'AAPL': 191.00, 'TSLA': 248.00, 'NVDA': 875.00 }
+  Object.entries(prices).forEach(([code, price]) => {
+    const t = state.tickers[code]
+    if (!t) return
+    const pts = Array.from({length: 20}, () => price * (1 + (Math.random() - 0.5) * 0.01))
+    t.price = price; t.points = pts; t.change = (Math.random() - 0.4) * 2
+  })
+  if (state.tickers['AAPL']) { state.tickers['AAPL'].signal = 'HOLD'; state.tickers['AAPL'].confidence = 52; state.tickers['AAPL'].qty = 5; state.tickers['AAPL'].avgPrice = 185.50 }
+  if (state.tickers['TSLA']) { state.tickers['TSLA'].signal = 'HOLD'; state.tickers['TSLA'].confidence = 45; state.tickers['TSLA'].qty = 0; state.tickers['TSLA'].avgPrice = 0 }
+  if (state.tickers['NVDA']) { state.tickers['NVDA'].signal = 'BUY';  state.tickers['NVDA'].confidence = 78; state.tickers['NVDA'].qty = 2; state.tickers['NVDA'].avgPrice = 820.00 }
+  state.totalAsset = 10_243_500; state.todayPnl = 243_500; state.cash = 8_750_000
+
+  state.orders = [
+    { side: 'BUY', ticker: 'NVDA', qty: 2, price: 820.00, pnl: 110.00 },
+    { side: 'BUY', ticker: 'AAPL', qty: 5, price: 185.50, pnl: 27.50 },
+  ]
+
+  updateTickersLabel()
+  renderAllTickers()
+  renderMetrics()
+  renderSignalBadges()
+  renderLogs()
+  renderOrders()
+  updateAiStatus(1476, 24, 1500, 'NVDA', new Date(Date.now() - 5 * 60000).toISOString())
+}
+
+function clearMockData() {
+  Object.values(state.tickers).forEach(t => {
+    t.price = 0; t.prevPrice = 0; t.change = 0; t.points = []; t.signal = 'HOLD'; t.confidence = 0; t.qty = 0; t.avgPrice = 0
+  })
+  state.totalAsset = 0; state.todayPnl = 0; state.cash = 0
+  state.logs = []; state.orders = []
+  _mockMarketLoaded = ''
+  renderAllTickers(); renderMetrics(); renderSignalBadges(); renderLogs(); renderOrders()
+}
+
+// ── KR/US 시장 전환 ────────────────────────────────────────────────────────────
+let _pendingMarket = null
+
+function setMarket(market) {
+  if (state.market === market) return
+  _pendingMarket = market
+
+  const toUS = market === 'US'
+  const namesMap = toUS ? US_TICKER_NAMES : KR_TICKER_NAMES
+  const tickerNames = Object.values(namesMap).join('  ·  ')
+  const flagLabel = toUS ? '🇺🇸 미국 시장으로 전환' : '🇰🇷 한국 시장으로 전환'
+
+  document.getElementById('mc-title').textContent = '시장 전환 확인'
+  document.getElementById('mc-headline').textContent = flagLabel
+  document.getElementById('mc-tickers').textContent = tickerNames
+  document.getElementById('mc-confirm-btn').style.background = toUS ? 'var(--mint)' : 'var(--mint)'
+
+  document.getElementById('market-confirm-overlay').classList.add('open')
+}
+
+function confirmMarketSwitch() {
+  const market = _pendingMarket
+  if (!market) return
+  document.getElementById('market-confirm-overlay').classList.remove('open')
+  _pendingMarket = null
+
+  state.market = market
+  document.getElementById('market-kr').classList.toggle('active', market === 'KR')
+  document.getElementById('market-us').classList.toggle('active', market === 'US')
+  api.sendCommand({ type: 'set_market', value: market })
+
+  const namesMap = market === 'US' ? US_TICKER_NAMES : KR_TICKER_NAMES
+  state.tickers = makeTickers(Object.keys(namesMap), namesMap)
+  state.logs = []; state.orders = []
+  _mockMarketLoaded = ''   // 시장 전환 시 mock 재로드 허용
+
+  updateClock()
+  updateTickersLabel()
+  showToast(`${market === 'US' ? '🇺🇸 미국' : '🇰🇷 한국'} 시장으로 전환됐습니다`, 'info')
+
+  if (state.mockMode) {
+    if (market === 'US') loadUsMock()
+    else loadMockInitial()
+  } else {
+    clearMockData()
+  }
+}
+
+function cancelMarketSwitch(event) {
+  if (event && event.target !== document.getElementById('market-confirm-overlay')) return
+  document.getElementById('market-confirm-overlay').classList.remove('open')
+  _pendingMarket = null
+}
+
+// 앱 시작 시 빈 상태로 렌더링 — mock 여부는 Python config 수신 후 결정
+renderAllTickers()
+applyAiToggle()
+
+// ── 자동매매 토글 ─────────────────────────────────────────────────────────────
+function onAutoTradeToggle(checked) {
+  state.autoTrade = checked
+  if (checked && !state.useAi) {
+    // 자동 ON → AI 강제 ON
+    state.useAi = true
+    document.getElementById('ai-toggle').checked = true
+    applyAiToggle()
+    showToast('자동매매 ON — AI 판단도 함께 활성화됐습니다', 'info', 2800)
+  }
+  api.sendCommand({ type: 'set_auto_trade', value: checked })
+}
+
+// ── AI 판단 토글 ──────────────────────────────────────────────────────────────
+function onAiToggle(checked) {
+  if (!checked && state.autoTrade) {
+    // AI 끄면 자동매매도 OFF
+    state.autoTrade = false
+    document.getElementById('auto-toggle').checked = false
+    showToast('AI 판단 OFF — 자동매매도 함께 비활성화됐습니다', 'warn', 3000)
+  }
+  state.useAi = checked
+  applyAiToggle()
+  api.sendCommand({ type: 'set_use_ai', value: checked })
+}
+
+function applyAiToggle() {
+  const wrap = document.getElementById('ai-toggle-wrap')
+  const label = document.getElementById('ai-label')
+  const aiEl  = document.getElementById('ai-status')
+  // 자동매매 ON이면 AI 토글 잠금 (끌 수 없음)
+  wrap.classList.toggle('ai-disabled', state.autoTrade && state.useAi)
+  wrap.title = state.autoTrade
+    ? 'AI 판단은 자동매매가 ON일 때 항상 활성화됩니다'
+    : 'Gemini AI 판단 ON/OFF'
+  label.style.opacity = state.useAi ? '1' : '0.5'
+  if (aiEl) aiEl.style.opacity = state.useAi ? '1' : '0.4'
+  updateAiState()
+}
+
+// ── DRY RUN 토글 — 실전 전환 시 확인 모달 ────────────────────────────────────
+function onDryRunToggle() {
+  if (state.dryRun) {
+    // DRY RUN → 실전: 확인 모달 표시
+    document.getElementById('lc-auto').textContent = state.autoTrade ? '자동 ON' : '수동'
+    document.getElementById('lc-auto').style.color = state.autoTrade ? 'var(--mint)' : 'var(--text2)'
+    document.getElementById('lc-mock').textContent = state.mockMode ? '모의투자' : '실계좌'
+    document.getElementById('lc-mock').style.color = state.mockMode ? 'var(--amber)' : 'var(--red)'
+    document.getElementById('live-confirm-overlay').classList.add('open')
+  } else {
+    // 실전 → DRY RUN: 즉시 전환 (안전한 방향)
+    state.dryRun = true
+    api.sendCommand({ type: 'set_dry_run', value: true })
+    applyRunBadge()
+    showToast('DRY RUN 모드로 전환됐습니다', 'info')
+  }
+}
+
+function confirmLiveMode() {
+  document.getElementById('live-confirm-overlay').classList.remove('open')
+  state.dryRun = false
+  api.sendCommand({ type: 'set_dry_run', value: false })
+  applyRunBadge()
+  showToast('실전 모드로 전환됐습니다. 주의하세요.', 'warn')
+}
+
+function cancelLiveMode(event) {
+  if (event && event.target !== document.getElementById('live-confirm-overlay')) return
+  document.getElementById('live-confirm-overlay').classList.remove('open')
+}
+
+// ── 토스트 ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'info', duration = 3500) {
+  const wrap = document.getElementById('toast-wrap')
+  const el = document.createElement('div')
+  el.className = `toast ${type}`
+  el.textContent = msg
+  wrap.appendChild(el)
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.3s'
+    el.style.opacity = '0'
+    setTimeout(() => el.remove(), 300)
+  }, duration)
+}
+
+function updateAiStatus(remaining, daily, limit, lastTicker = '', lastTime = '') {
+  const el = document.getElementById('ai-status')
+  if (!el) return
+  el.textContent = `AI ${remaining}/${limit}`
+  el.title = `Gemini 일일 호출: ${daily}회 사용 / ${limit}회 한도 (잔여 ${remaining}회)`
+  // 남은 비율 기준으로 경고 (10% 미만 → 빨강, 20% 미만 → 주황)
+  const ratio = limit > 0 ? remaining / limit : 1
+  if (ratio < 0.10) {
+    el.style.color = 'var(--red)'
+    if (remaining > 0 && remaining % 10 === 0) {
+      showToast(`Gemini 한도 주의 — 잔여 ${remaining}회 (${Math.round(ratio*100)}%)`, 'warn')
+    }
+  } else if (ratio < 0.20) {
+    el.style.color = 'var(--amber)'
+  } else {
+    el.style.color = 'rgba(255,255,255,0.25)'
+  }
+  // AI 판단 완료 → 상태 업데이트
+  state.aiThinking = false
+  if (lastTicker) state.aiLastTicker = lastTicker
+  if (lastTime) {
+    state.aiLastTime = new Date(lastTime)
+    _lastJudgeTs = state.aiLastTime.getTime()   // 타이머 기준점 동기화
+  }
+  updateAiState()
+  updateAiTimer()
+}
+
+function updateAiState() {
+  const dot = document.getElementById('ai-dot')
+  const label = document.getElementById('ai-state-label')
+  if (!dot || !label) return
+
+  if (!state.useAi) {
+    dot.className = 'ai-thinking-dot off'
+    label.textContent = 'AI 비활성'
+    label.style.color = 'rgba(255,255,255,0.18)'
+    return
+  }
+  if (state.aiThinking) {
+    dot.className = 'ai-thinking-dot active'
+    const name = state.tickers[state.aiLastTicker]?.name || state.aiLastTicker
+    label.textContent = `${name || 'AI'} 판단 중`
+    label.style.color = 'rgba(155,109,255,0.8)'
+    return
+  }
+  // 마지막 판단 시각 표시
+  dot.className = 'ai-thinking-dot idle'
+  if (state.aiLastTime) {
+    const diffSec = Math.floor((Date.now() - state.aiLastTime.getTime()) / 1000)
+    let ago
+    if (diffSec < 60) ago = `${diffSec}초 전`
+    else if (diffSec < 3600) ago = `${Math.floor(diffSec / 60)}분 전`
+    else ago = `${Math.floor(diffSec / 3600)}시간 전`
+    label.textContent = `AI ${ago}`
+    label.style.color = 'rgba(155,109,255,0.5)'
+  } else {
+    label.textContent = 'AI 대기 중'
+    label.style.color = 'rgba(255,255,255,0.2)'
+  }
+}
+
+// AI 상태 시계 업데이트 (1분마다 "N분 전" 갱신)
+setInterval(() => { if (!state.aiThinking) updateAiState() }, 30000)
+
+function applyRunBadge() {
+  const badge = document.getElementById('run-badge')
+  if (state.dryRun) {
+    badge.textContent = 'DRY RUN'
+    badge.style.background = 'rgba(255,179,71,0.12)'
+    badge.style.color = 'var(--amber)'
+    badge.style.borderColor = 'rgba(255,179,71,0.2)'
+  } else {
+    badge.textContent = '실전'
+    badge.style.background = 'rgba(255,107,107,0.15)'
+    badge.style.color = 'var(--red)'
+    badge.style.borderColor = 'rgba(255,107,107,0.3)'
+  }
+}
+
+// ── 주문 패널 탭 전환 ────────────────────────────────────────────────────────
+function setOrderTab(mode) {
+  state.orderTabMode = mode
+  document.getElementById('tab-orders').classList.toggle('active', mode === 'orders')
+  document.getElementById('tab-history').classList.toggle('active', mode === 'history')
+  document.getElementById('order-list').style.display = mode === 'orders' ? '' : 'none'
+  document.getElementById('history-list').style.display = mode === 'history' ? '' : 'none'
+  if (mode === 'history') {
+    api.sendCommand({ type: 'get_orders', limit: 50 })
+  }
+}
+
+// ── 거래 내역 렌더링 ─────────────────────────────────────────────────────────
+function renderHistoryList() {
+  const el = document.getElementById('history-list')
+  if (!el) return
+  const orders = state.ordersHistory
+  if (!orders || orders.length === 0) {
+    el.innerHTML = `<div style="font-size:10px;color:var(--text3);text-align:center;padding:12px 0">거래 내역 없음</div>`
+    return
+  }
+  el.innerHTML = orders.map(o => {
+    const pnl = o.pnl || 0
+    const ts = o.timestamp ? o.timestamp.slice(5, 16).replace('T', ' ') : '—'
+    const statusCls = o.status === 'CANCELLED' ? 'style="opacity:0.4;text-decoration:line-through"' : ''
+    const canCancel = o.status !== 'CANCELLED' && o.side === 'BUY'
+    return `<div class="history-item" ${statusCls}>
+      <span class="side-badge ${o.side === 'BUY' ? 'b' : 's'}">${o.side === 'BUY' ? 'B' : 'S'}</span>
+      <span class="order-ticker">${o.ticker}</span>
+      <span class="history-detail">${o.qty}주 · ${(o.price || 0).toLocaleString()}</span>
+      <span class="order-pnl ${pnl >= 0 ? 'pos' : 'neg'}">${pnl !== 0 ? (pnl >= 0 ? '+' : '') + Math.round(pnl).toLocaleString() : ''}</span>
+      <span class="history-ts">${ts}</span>
+      ${canCancel ? `<button class="cancel-btn" onclick="cancelOrder('${o.order_id}')">취소</button>` : ''}
+    </div>`
+  }).join('')
+}
+
+function cancelOrder(orderId) {
+  if (!confirm(`주문 ${orderId.slice(0, 20)}... 을 취소하시겠습니까?`)) return
+  api.sendCommand({ type: 'cancel_order', order_id: orderId })
+}
+
+// ── 백테스트 ─────────────────────────────────────────────────────────────────
+function runBacktest() {
+  if (!state.modalTicker) return
+  showToast(`${state.modalTicker} 백테스트 실행 중...`, 'info', 2000)
+  api.sendCommand({ type: 'run_backtest', ticker: state.modalTicker })
+}
+
+function showBacktestResult(result) {
+  document.getElementById('bt-title').textContent = `백테스트 결과 — ${result.ticker}`
+  const ret = result.total_pnl || 0
+  const retEl = document.getElementById('bt-return')
+  retEl.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%'
+  retEl.className = 'bt-card-val ' + (ret >= 0 ? 'pos' : 'neg')
+
+  const wr = (result.win_rate || 0) * 100
+  const wrEl = document.getElementById('bt-winrate')
+  wrEl.textContent = wr.toFixed(1) + '%'
+  wrEl.className = 'bt-card-val ' + (wr >= 50 ? 'pos' : 'neg')
+
+  document.getElementById('bt-trades').textContent =
+    `${result.total_trades || 0}회 (승${result.win_trades || 0}/패${result.loss_trades || 0})`
+
+  const pf = result.profit_factor || 0
+  const pfEl = document.getElementById('bt-pf')
+  pfEl.textContent = pf.toFixed(2)
+  pfEl.className = 'bt-card-val ' + (pf >= 1 ? 'pos' : 'neg')
+
+  document.getElementById('bt-mdd').textContent = '-' + (result.mdd || 0).toFixed(2) + '%'
+
+  const sh = result.sharpe || 0
+  const shEl = document.getElementById('bt-sharpe')
+  shEl.textContent = sh.toFixed(2)
+  shEl.className = 'bt-card-val ' + (sh >= 1 ? 'pos' : sh < 0 ? 'neg' : 'neutral')
+
+  document.getElementById('bt-detail').textContent =
+    `평균 수익: +${(result.avg_profit_pct || 0).toFixed(2)}%  |  평균 손실: ${(result.avg_loss_pct || 0).toFixed(2)}%`
+
+  document.getElementById('backtest-overlay').classList.add('open')
+}
+
+function closeBacktestModal(event) {
+  if (event && event.target !== document.getElementById('backtest-overlay')) return
+  document.getElementById('backtest-overlay').classList.remove('open')
+}
+
+// ── 가격 알람 ────────────────────────────────────────────────────────────────
+function toggleAlertDir() {
+  state.alertDir = state.alertDir === 'above' ? 'below' : 'above'
+  const btn = document.getElementById('alert-dir')
+  if (state.alertDir === 'above') {
+    btn.textContent = '↑ 이상'
+    btn.className = 'alert-dir-btn above'
+  } else {
+    btn.textContent = '↓ 이하'
+    btn.className = 'alert-dir-btn below'
+  }
+}
+
+function setAlert() {
+  if (!state.modalTicker) return
+  const price = parseFloat(document.getElementById('alert-price').value)
+  if (!price || price <= 0) return
+  state.priceAlerts[state.modalTicker] = { price, direction: state.alertDir, triggered: false }
+  api.sendCommand({ type: 'set_price_alert', ticker: state.modalTicker, price, direction: state.alertDir })
+  updateAlertInfo(state.modalTicker)
+}
+
+function clearAlert() {
+  if (!state.modalTicker) return
+  delete state.priceAlerts[state.modalTicker]
+  api.sendCommand({ type: 'clear_price_alert', ticker: state.modalTicker })
+  updateAlertInfo(state.modalTicker)
+}
+
+function updateAlertInfo(ticker) {
+  const infoEl = document.getElementById('alert-info')
+  if (!infoEl) return
+  const alert = state.priceAlerts[ticker]
+  if (alert) {
+    const arrow = alert.direction === 'above' ? '↑' : '↓'
+    const status = alert.triggered ? ' (발동됨)' : ''
+    infoEl.textContent = `현재 알람: ${arrow} ${(alert.price).toLocaleString()}${status}`
+  } else {
+    infoEl.textContent = ''
+  }
+}
+
+// ── 손절가·목표가 수동 수정 ─────────────────────────────────────────────────
+function openLimitEditor(ticker) {
+  const limits = state.tickers[ticker]
+  // 모달에서 현재 한도 불러오기 (로그 기반)
+  const lastLog = state.logs.find(l => l.ticker === ticker)
+  if (lastLog) {
+    if (lastLog.stop_loss)    document.getElementById('limit-stop').value   = lastLog.stop_loss
+    if (lastLog.target_price) document.getElementById('limit-target').value = lastLog.target_price
+  }
+}
+
+function saveLimits() {
+  if (!state.modalTicker) return
+  const stopLoss    = parseFloat(document.getElementById('limit-stop').value) || 0
+  const targetPrice = parseFloat(document.getElementById('limit-target').value) || 0
+  api.sendCommand({ type: 'update_position_limits', ticker: state.modalTicker, stop_loss: stopLoss, target_price: targetPrice })
+}
+
+// ── Gemini 모델 전환 ─────────────────────────────────────────────────────────
+function onModelChange(model) {
+  api.sendCommand({ type: 'set_gemini_model', model })
+}
+
+// ── 리밸런싱 ────────────────────────────────────────────────────────────────
+function doRebalance() {
+  if (!confirm('보유 종목을 동일 비중으로 리밸런싱할까요?')) return
+  api.sendCommand({ type: 'rebalance' })
+  showToast('리밸런싱 요청 전송', 'info', 2000)
+}
+
+// ── 장 전 준비 ───────────────────────────────────────────────────────────────
+function doPreMarket() {
+  api.sendCommand({ type: 'pre_market_check' })
+  showToast('장 전 준비 시작...', 'info', 2000)
+}
+
+// ── 시장가 주문 토글 ─────────────────────────────────────────────────────────
+function onMarketOrderToggle(isMarket) {
+  state.isMarketOrder = isMarket
+  const priceField = document.getElementById('om-price-field')
+  if (priceField) priceField.style.opacity = isMarket ? '0.4' : '1'
+  const priceInput = document.getElementById('om-price')
+  if (priceInput) priceInput.disabled = isMarket
+  if (isMarket) {
+    const t = state.tickers[state.orderModal.ticker]
+    if (t && t.price) document.getElementById('om-price').value = t.price
+    showToast('시장가 주문: 현재가로 즉시 체결됩니다', 'info', 2000)
+  }
+  updateOrderTotal()
+}
+
+// ── Config 수신 (Python → Electron) ──────────────────────────────────────────
+// mock 데이터는 최초 1회 또는 시장 전환 시에만 로드 (이후 config 업데이트에는 로그 유지)
+let _mockMarketLoaded = ''   // 마지막으로 mock 로드한 시장 ('KR' | 'US' | '')
+
+api.onConfig((cfg) => {
+  state.autoTrade = cfg.auto_trade
+  state.dryRun    = cfg.dry_run
+  state.mockMode  = cfg.mock_mode
+  state.useAi     = cfg.use_ai !== undefined ? cfg.use_ai : true
+  // AI 쿨다운 인터벌 동기화 (Python config.gemini.min_interval_minutes)
+  if (cfg.min_interval_minutes) _aiIntervalSec = cfg.min_interval_minutes * 60
+  document.getElementById('auto-toggle').checked = cfg.auto_trade
+  document.getElementById('ai-toggle').checked   = state.useAi
+  applyRunBadge()
+  applyAiToggle()
+
+  // 시장 및 종목 반영
+  const newMarket = cfg.market || 'KR'
+  const marketChanged = newMarket !== state.market
+  if (marketChanged) {
+    state.market = newMarket
+    document.getElementById('market-kr').classList.toggle('active', newMarket === 'KR')
+    document.getElementById('market-us').classList.toggle('active', newMarket === 'US')
+    // 시장 변경 시 로그·주문 초기화 + mock 재로드 허용
+    state.logs = []; state.orders = []
+    _mockMarketLoaded = ''
+    updateClock()
+  }
+  if (cfg.tickers && cfg.tickers.length > 0) {
+    const allNames = { ...KR_TICKER_NAMES, ...US_TICKER_NAMES }
+    state.tickers = makeTickers(cfg.tickers, allNames)
+    updateTickersLabel()
+  }
+
+  if (cfg.mock_mode) {
+    // 같은 시장의 mock이 이미 로드됐으면 재로드 안 함 (로그 보존)
+    if (_mockMarketLoaded !== newMarket) {
+      _mockMarketLoaded = newMarket
+      if (newMarket === 'US') loadUsMock()
+      else loadMockInitial()
+    }
+  } else {
+    _mockMarketLoaded = ''
+    clearMockData()
+  }
+})
+
+// ── 주문 입력 모달 ───────────────────────────────────────────────────────────
+function openOrderModal(ticker, side) {
+  const t = state.tickers[ticker]
+  if (!t) return
+  state.orderModal = { ticker, side }
+
+  document.getElementById('om-name').textContent = t.name
+  document.getElementById('om-code').textContent = ticker
+  document.getElementById('om-price-label').textContent = state.market === 'US' ? '가격 (USD)' : '가격 (원)'
+  document.getElementById('om-price').step = state.market === 'US' ? '0.01' : '10'
+  document.getElementById('om-price').value = t.price ? (state.market === 'US' ? t.price.toFixed(2) : t.price) : ''
+  document.getElementById('om-qty').value = 1
+
+  const badge = document.getElementById('om-badge')
+  badge.textContent = side === 'BUY' ? '매수' : '매도'
+  badge.className = 'signal-badge ' + (side === 'BUY' ? 'buy' : 'sell')
+
+  const confirmBtn = document.getElementById('om-confirm-btn')
+  confirmBtn.style.background = side === 'BUY' ? 'var(--mint)' : 'var(--red)'
+  confirmBtn.style.color = side === 'BUY' ? '#0A1628' : 'white'
+
+  // 예수금 표시
+  document.getElementById('om-cash').textContent = state.cash > 0 ? state.cash.toLocaleString() + '원' : '—'
+
+  updateOrderTotal()
+  document.getElementById('order-modal-overlay').classList.add('open')
+  setTimeout(() => document.getElementById('om-price').focus(), 150)
+}
+
+function closeOrderModal(event) {
+  if (event && event.target !== document.getElementById('order-modal-overlay')) return
+  document.getElementById('order-modal-overlay').classList.remove('open')
+  state.orderModal = { ticker: null, side: null }
+}
+
+function _calcMaxQty(price) {
+  if (!price || price <= 0 || state.cash <= 0) return 0
+  // US: cash is in KRW, price is in USD — skip max calc (different currency)
+  if (state.market === 'US') return 0
+  return Math.floor(state.cash / price)
+}
+
+function setMaxQty() {
+  const price = parseInt(document.getElementById('om-price').value) || 0
+  const max = _calcMaxQty(price)
+  if (max > 0) {
+    document.getElementById('om-qty').value = max
+    updateOrderTotal()
+  }
+}
+
+function updateOrderTotal() {
+  const price  = parseFloat(document.getElementById('om-price').value) || 0
+  const qty    = parseInt(document.getElementById('om-qty').value)   || 0
+  const total  = price * qty
+  const max    = _calcMaxQty(price)
+  const { side } = state.orderModal
+
+  // 최대 수량 레이블 갱신 (KR만)
+  document.getElementById('om-max-label').textContent = max > 0 ? `최대 ${max.toLocaleString()}주` : (state.market === 'US' ? '' : '최대 —주')
+  document.getElementById('om-max-label').style.display = state.market === 'US' ? 'none' : ''
+
+  // 예상 금액
+  const totalEl = document.getElementById('om-total')
+  totalEl.textContent = total > 0 ? formatPrice(total) : '—'
+
+  // 매수 시 잔고 초과 경고 (KR만)
+  if (state.market === 'KR' && side === 'BUY' && price > 0 && qty > 0 && state.cash > 0 && total > state.cash) {
+    totalEl.style.color = 'var(--red)'
+  } else {
+    totalEl.style.color = ''
+  }
+}
+
+function confirmOrder() {
+  const { ticker, side } = state.orderModal
+  if (!ticker || !side) return
+  const price = parseFloat(document.getElementById('om-price').value)
+  const qty   = parseInt(document.getElementById('om-qty').value)
+  if (!price || price <= 0 || !qty || qty <= 0) return
+
+  // 매수 시 잔고 초과 차단 (KR만)
+  if (state.market === 'KR' && side === 'BUY' && state.cash > 0 && price * qty > state.cash) {
+    document.getElementById('om-total').style.color = 'var(--red)'
+    return
+  }
+
+  api.sendCommand({ type: 'manual_order', ticker, side, price, qty, market_order: state.isMarketOrder })
+  flashCard(ticker, side)
+  document.getElementById('order-modal-overlay').classList.remove('open')
+  state.orderModal = { ticker: null, side: null }
+  state.isMarketOrder = false
+  const toggle = document.getElementById('om-market-toggle')
+  if (toggle) toggle.checked = false
+  const priceField = document.getElementById('om-price-field')
+  if (priceField) priceField.style.opacity = '1'
+  const priceInput = document.getElementById('om-price')
+  if (priceInput) priceInput.disabled = false
+}
+
+// ── 수동 주문 진입점 (카드 버튼 / 모달 버튼 공통) ────────────────────────────
+function sendManualOrder(ticker, side) {
+  openOrderModal(ticker, side)
+}
+
+function manualOrder(side) {
+  if (!state.modalTicker) return
+  openOrderModal(state.modalTicker, side)
+}
+
+// ── 상세 모달 ─────────────────────────────────────────────────────────────────
+function openModal(ticker, judgment = null) {
+  const t = state.tickers[ticker]
+  if (!t) return
+  state.modalTicker = ticker
+  state.modalJudgment = judgment
+  document.getElementById('modal-name').textContent  = t.name
+  document.getElementById('modal-code').textContent  = ticker
+  document.getElementById('modal-price').textContent = t.price ? formatPrice(t.price) : '—'
+  document.getElementById('modal-overlay').classList.add('open')
+
+  // 판단 패널 표시/숨김
+  if (judgment) {
+    showJudgmentPanel(judgment)
+  } else {
+    document.getElementById('modal-judgment').style.display = 'none'
+  }
+
+  // 손절가·목표가 초기화 (최근 로그 기반)
+  const lastLog = state.logs.find(l => l.ticker === ticker)
+  if (lastLog) {
+    if (lastLog.stop_loss)    document.getElementById('limit-stop').value   = lastLog.stop_loss
+    if (lastLog.target_price) document.getElementById('limit-target').value = lastLog.target_price
+  } else {
+    document.getElementById('limit-stop').value = ''
+    document.getElementById('limit-target').value = ''
+  }
+
+  // 가격 알람 상태 표시
+  updateAlertInfo(ticker)
+  const alertPriceEl = document.getElementById('alert-price')
+  if (alertPriceEl && state.priceAlerts[ticker]) {
+    alertPriceEl.value = state.priceAlerts[ticker].price
+  }
+
+  // 캔들 요청 (Python이 응답하면 onCandles로 받음)
+  api.sendCommand({ type: 'get_candles', ticker })
+
+  // Mock 캔들로 즉시 표시 (Python 응답 전 미리보기)
+  drawCandleChart(generateMockCandles(t.price || 75000), judgmentLines(judgment))
+  updateIndicators({
+    rsi: (Math.random() * 40 + 30).toFixed(1),
+    macd: (Math.random() * 200 - 100).toFixed(0),
+    macd_signal: (Math.random() * 200 - 100).toFixed(0),
+    bb_upper: t.price ? t.price * 1.02 : 0,
+    bb_lower: t.price ? t.price * 0.98 : 0,
+    bb_mid:   t.price || 0,
+  })
+}
+
+function showJudgmentPanel(j) {
+  const panel = document.getElementById('modal-judgment')
+  panel.style.display = 'block'
+
+  const badge = document.getElementById('jdg-badge')
+  badge.textContent = j.signal
+  badge.className = 'signal-badge ' + j.signal.toLowerCase()
+
+  const pct = j.confidence || 0
+  const barColor = j.signal === 'BUY' ? 'var(--mint)' : j.signal === 'SELL' ? 'var(--red)' : 'rgba(255,255,255,0.3)'
+  document.getElementById('jdg-bar').style.cssText = `width:${pct}%; background:${barColor}`
+  document.getElementById('jdg-conf').textContent = pct + '%'
+  document.getElementById('jdg-conf').style.color = barColor
+
+  const target = j.target_price
+  const stop   = j.stop_loss
+  document.getElementById('jdg-target').textContent = target ? formatPrice(target) : '—'
+  document.getElementById('jdg-stop').textContent   = stop   ? formatPrice(stop) : '—'
+  document.getElementById('jdg-reason').textContent = j.reason || ''
+}
+
+function judgmentLines(j) {
+  if (!j) return []
+  const lines = []
+  if (j.target_price) lines.push({ price: j.target_price, color: 'rgba(0,212,170,0.8)',  label: '목표가' })
+  if (j.stop_loss)    lines.push({ price: j.stop_loss,    color: 'rgba(255,107,107,0.8)', label: '손절가' })
+  return lines
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal-overlay')) return
+  document.getElementById('modal-overlay').classList.remove('open')
+  state.modalTicker = null
+  state.modalJudgment = null
+}
+
+// ── 캔들 수신 ────────────────────────────────────────────────────────────────
+api.onCandles((data) => {
+  if (data.ticker !== state.modalTicker) return
+  if (data.ohlcv && data.ohlcv.length) drawCandleChart(data.ohlcv, judgmentLines(state.modalJudgment))
+  if (data.indicators) updateIndicators(data.indicators)
+})
+
+// ── 캔들차트 그리기 (Canvas) ──────────────────────────────────────────────────
+function generateMockCandles(basePrice) {
+  const candles = []
+  let price = basePrice
+  for (let i = 0; i < 40; i++) {
+    const open  = price
+    const close = price * (1 + (Math.random() - 0.48) * 0.008)
+    const high  = Math.max(open, close) * (1 + Math.random() * 0.004)
+    const low   = Math.min(open, close) * (1 - Math.random() * 0.004)
+    candles.push({ o: open, h: high, l: low, c: close })
+    price = close
+  }
+  return candles
+}
+
+function drawCandleChart(candles, lines = []) {
+  const canvas = document.getElementById('candle-canvas')
+  const dpr = window.devicePixelRatio || 1
+  const W = canvas.offsetWidth || 338
+  const H = 160
+  canvas.width  = W * dpr
+  canvas.height = H * dpr
+  canvas.style.width  = W + 'px'
+  canvas.style.height = H + 'px'
+
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+  ctx.clearRect(0, 0, W, H)
+
+  if (!candles || !candles.length) return
+
+  const highs = candles.map(c => c.h)
+  const lows  = candles.map(c => c.l)
+  const maxP  = Math.max(...highs)
+  const minP  = Math.min(...lows)
+  const range = maxP - minP || 1
+
+  const pad = { top: 8, bottom: 8, left: 2, right: 2 }
+  const chartH = H - pad.top - pad.bottom
+  const toY = v => pad.top + (1 - (v - minP) / range) * chartH
+
+  const cw  = (W - pad.left - pad.right) / candles.length
+  const bw  = Math.max(1, cw * 0.6)
+
+  candles.forEach((c, i) => {
+    const x    = pad.left + i * cw + cw / 2
+    const oY   = toY(c.o)
+    const cY   = toY(c.c)
+    const hY   = toY(c.h)
+    const lY   = toY(c.l)
+    const bull = c.c >= c.o
+    const color = bull ? '#00D4AA' : '#FF6B6B'
+
+    // wick
+    ctx.strokeStyle = color
+    ctx.lineWidth   = 1
+    ctx.beginPath()
+    ctx.moveTo(x, hY)
+    ctx.lineTo(x, lY)
+    ctx.stroke()
+
+    // body
+    ctx.fillStyle = bull ? 'rgba(0,212,170,0.8)' : 'rgba(255,107,107,0.8)'
+    const bodyTop = Math.min(oY, cY)
+    const bodyH   = Math.max(1, Math.abs(oY - cY))
+    ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH)
+  })
+
+  // 목표가 / 손절가 수평선
+  lines.forEach(({ price, color, label }) => {
+    const y = toY(price)
+    if (y < pad.top || y > H - pad.bottom) return
+    ctx.save()
+    ctx.setLineDash([4, 3])
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(pad.left, y)
+    ctx.lineTo(W - pad.right, y)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.fillStyle = color
+    ctx.font = `bold 9px -apple-system, sans-serif`
+    ctx.textAlign = 'right'
+    ctx.fillText(label, W - pad.right - 2, y - 3)
+    ctx.restore()
+  })
+}
+
+// ── 지표 카드 업데이트 ─────────────────────────────────────────────────────────
+function updateIndicators(ind) {
+  const rsi = parseFloat(ind.rsi)
+  const rsiEl  = document.getElementById('ind-rsi')
+  const rsiSub = document.getElementById('ind-rsi-sub')
+  if (!isNaN(rsi)) {
+    rsiEl.textContent = rsi.toFixed(1)
+    rsiEl.className = 'ind-val ' + (rsi < 30 ? 'up' : rsi > 70 ? 'down' : 'neutral')
+    rsiSub.textContent = rsi < 30 ? '과매도' : rsi > 70 ? '과매수' : '중립'
+  }
+
+  const macd = parseFloat(ind.macd)
+  const sig  = parseFloat(ind.macd_signal)
+  const macdEl  = document.getElementById('ind-macd')
+  const macdSub = document.getElementById('ind-macd-sub')
+  if (!isNaN(macd)) {
+    macdEl.textContent = macd.toFixed(0)
+    macdEl.className = 'ind-val ' + (macd > 0 ? 'up' : 'down')
+    macdSub.textContent = !isNaN(sig) ? '시그널 ' + sig.toFixed(0) : ''
+  }
+
+  const bbMid   = parseFloat(ind.bb_mid)
+  const bbUpper = parseFloat(ind.bb_upper)
+  const bbLower = parseFloat(ind.bb_lower)
+  const bbEl  = document.getElementById('ind-bb')
+  const bbSub = document.getElementById('ind-bb-sub')
+  if (!isNaN(bbMid) && !isNaN(bbUpper) && !isNaN(bbLower)) {
+    const t = state.tickers[state.modalTicker]
+    const price = t?.price || bbMid
+    const pos = ((price - bbLower) / (bbUpper - bbLower) * 100).toFixed(0)
+    bbEl.textContent = pos + '%'
+    bbEl.className = 'ind-val ' + (pos < 20 ? 'up' : pos > 80 ? 'down' : 'neutral')
+    bbSub.textContent = bbLower.toLocaleString() + ' ~ ' + bbUpper.toLocaleString()
+  }
+}
+</script>
+</body>
+</html>

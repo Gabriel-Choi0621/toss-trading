@@ -1,0 +1,13 @@
+config.yaml
+.env
+__pycache__/
+*.py[cod]
+*.db
+logs/
+data/*.db
+backtest_result.json
+.DS_Store
+node_modules/
+.claude/
+.pytest_cache/
+data/

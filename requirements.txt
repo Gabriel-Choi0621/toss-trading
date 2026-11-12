@@ -1,0 +1,29 @@
+# 핵심 라이브러리
+pandas>=2.0.0
+numpy>=1.24.0
+google-generativeai>=0.8.0
+
+# 기술적 분석 (TA-Lib 없으면 pandas-ta 대체 가능)
+# TA-Lib 설치: https://github.com/TA-Lib/ta-lib-python
+# TA-Lib==0.4.28
+pandas-ta>=0.3.14b  # TA-Lib 대체제 (설치 쉬움)
+
+# 백테스팅
+backtrader>=1.9.78
+
+# 텔레그램 봇
+python-telegram-bot>=20.0
+
+# 설정 파일
+PyYAML>=6.0
+
+# 비동기
+aiohttp>=3.9.0
+websockets>=12.0
+
+# 데이터베이스
+# SQLite는 표준 라이브러리 포함
+
+# 유틸리티
+python-dotenv>=1.0.0
+schedule>=1.2.0
