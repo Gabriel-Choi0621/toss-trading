@@ -11,3 +11,8 @@ node_modules/
 .claude/
 .pytest_cache/
 data/
+
+# AI 작업 메모 (로컬 전용)
+CLAUDE.md
+next_session_handoff.md
+PENDING_FIXES.md
