@@ -57,7 +57,7 @@ toss-trading/
 ├── analyzer/
 │   └── technical.py          # 기술적 지표 (분봉 + 일봉)
 ├── ai/
-│   ├── judgment_engine.py    # Gemini 2.5 Flash 판단 엔진
+│   ├── judgment_engine.py    # Gemini 판단 엔진
 │   └── prompt_templates.py   # AI 프롬프트 관리
 ├── executor/
 │   ├── order.py              # 주문 실행 + DB 저장 + 성과 집계
@@ -81,9 +81,9 @@ toss-trading/
 # Gemini AI API 키 (https://aistudio.google.com/apikey 에서 무료 발급)
 gemini:
   api_key: "AIza..."
-  model: "gemini-2.5-flash"
-  daily_limit: 250    # 무료 티어 하루 250회
-  rpm_limit: 10       # 무료 티어 분당 10회
+  model: "gemini-3.1-flash-lite"
+  daily_limit: 500    # 앱 내부 일일 호출 한도
+  rpm_limit: 15       # 앱 내부 분당 호출 한도
 
 # 토스증권 API (실제 연동 구현 전까지 mock_mode: true 유지)
 toss:
@@ -251,7 +251,7 @@ npm start
     ├─ 포지션 컨텍스트 조회 (수량, 평균단가, 평가손익%)
     ├─ 직전 AI 신호 로드 (DB 영속, 재시작 후에도 유지)
     │
-    └─→ Gemini 2.5 Flash 판단 (한도: 250회/일, 10회/분)
+    └─→ Gemini 판단 (기본 한도: 500회/일, 15회/분)
             │
             ├─ 신뢰도 80%+ AND 자동매매 ON → 주문 실행
             ├─ 신뢰도 60~79% → 로그만 (향후 텔레그램 연동)
@@ -737,7 +737,7 @@ python -m pytest tests/test_all.py --lf -v
 A. `config.yaml`의 `gemini.api_key`가 올바른지 확인하세요. 로그에서 "Gemini API 키 미설정" 메시지를 찾아보세요.
 
 **Q. Gemini 한도를 초과했어요**  
-A. 무료 티어는 하루 250회입니다. `interval_seconds: 300`(5분)이면 3종목 기준 하루 234회로 한도 내입니다. 종목을 더 추가했다면 간격을 늘리세요.
+A. 앱은 `gemini.daily_limit`(기본 500회)에 닿으면 HOLD를 반환하고 다음 날 초기화됩니다. 종목을 더 추가했다면 `interval_seconds`나 `gemini.min_interval_minutes`를 늘리세요. 실제 무료 한도는 Google 정책에 따라 바뀌니 AI Studio에서 확인하세요.
 
 **Q. 손절가에 도달했는데 매도가 안 됩니다**  
 A. 로그에서 해당 종목의 `_sell_triggered` 또는 `잔고 없음` 메시지를 확인하세요. Mock 모드에서 매도 시 `positions`에 해당 종목이 없으면 skipped 됩니다.

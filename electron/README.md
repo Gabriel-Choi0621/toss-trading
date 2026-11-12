@@ -14,7 +14,7 @@ electron/               →   데스크탑 앱 (UI)
 
 ```bash
 # 프로젝트 루트에서
-pip install pandas numpy pandas-ta anthropic pyyaml websockets
+pip install -r requirements.txt
 
 python main.py          # dry-run (기본)
 python main.py --live   # 실전 (주의!)

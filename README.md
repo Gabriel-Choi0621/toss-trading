@@ -38,10 +38,11 @@ Gemini AI가 기술적 지표를 분석해 매수/매도 신호를 생성하고,
 
 AI가 기술적 지표를 보고 매수/매도/홀딩을 판단하는 데 사용합니다.
 
-**무료 티어 한도**
-- 하루 250회 요청
-- 분당 10회 요청
-- 장중(09:00~15:30) 5분 간격으로 3종목 = 하루 약 234회 → **무료 한도 내**
+**호출 한도 관리**
+- 기본 모델: `gemini-3.1-flash-lite` (`config.yaml`의 `gemini.model`로 변경)
+- 앱 내부 한도: 하루 `daily_limit`(기본 500회), 분당 `rpm_limit`(기본 15회)
+- 종목당 최소 재판단 간격(`min_interval_minutes`, 기본 5분)으로 호출 수를 줄입니다
+- 실제 무료 한도는 Google 정책에 따라 바뀌므로 [AI Studio](https://aistudio.google.com) 에서 확인하세요
 
 **발급 방법**
 
@@ -106,7 +107,7 @@ telegram:
 ### Python 패키지 설치
 
 ```bash
-pip install pandas numpy pandas-ta google-generativeai pyyaml aiohttp websockets
+pip install -r requirements.txt
 ```
 
 ### config.yaml 설정
@@ -243,7 +244,7 @@ toss-trading/
 > `config.yaml`의 `dry_run: true`가 기본값입니다. 이 상태에서는 주문이 실행되지 않고 로그만 남습니다. 실전 전환은 충분한 테스트 후에 하세요.
 
 **Q. Gemini API 비용이 얼마나 나오나요?**
-> 장중 5분 간격, 3종목 기준 하루 약 234회 호출로 무료 한도(250회) 안에 들어옵니다. 한도 초과 시 자동으로 HOLD를 반환하고 다음 날 초기화됩니다.
+> 무료 티어로 동작하도록 만들었습니다. 앱이 `daily_limit`·`rpm_limit`로 호출 수를 직접 제한하고, 한도에 닿으면 자동으로 HOLD를 반환한 뒤 다음 날 초기화됩니다.
 
 **Q. 토스증권 API 키 없이도 테스트할 수 있나요?**
 > 네. `mock_mode: true`(기본값)로 설정하면 랜덤 Mock 데이터로 시스템 전체를 테스트할 수 있습니다.

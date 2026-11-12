@@ -84,7 +84,7 @@ class TossAPIInterface:
     토스증권 API 추상 인터페이스.
     현재는 Mock으로 동작하며, 실제 연동 시 이 부분을 구현합니다.
 
-    TODO: API 공개 후 구현 필요 항목
+    TODO: 실제 연동 시 구현 필요 항목
       - REST: 현재가 조회, 잔고 조회, 주문 실행, 주문 취소
       - WebSocket: 실시간 시세 구독
       - 인증: OAuth2 또는 API Key 방식

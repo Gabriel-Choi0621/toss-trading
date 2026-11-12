@@ -46,7 +46,7 @@ toss-trading/
 ├── analyzer/
 │   └── technical.py         # RSI, MACD, 볼린저밴드 등 지표 계산
 ├── ai/
-│   ├── judgment_engine.py   # Gemini 2.5 Flash API 판단 엔진 (무료 티어)
+│   ├── judgment_engine.py   # Gemini 판단 엔진 (무료 티어)
 │   └── prompt_templates.py  # AI 프롬프트
 ├── executor/
 │   ├── order.py             # 주문 실행 + SQLite 기록
@@ -67,7 +67,7 @@ toss-trading/
 - **Electron 28** + HTML/CSS/JS (단일 파일 index.html)
 - **WebSocket** — Python(ui_server.py) ↔ Electron(main.js) 통신
 - **IPC** — main.js ↔ index.html (preload.js 통해서)
-- **Gemini 2.5 Flash** — AI 매매 판단 (google-genai 패키지)
+- **Gemini (기본 gemini-3.1-flash-lite)** — AI 매매 판단 (google-genai 패키지)
 - **pandas, numpy** — 기술적 지표 계산
 - **SQLite** — 주문 내역 저장
 

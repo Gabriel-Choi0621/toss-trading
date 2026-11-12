@@ -17,7 +17,7 @@ toss-trading/
 ├── analyzer/
 │   └── technical.py         # 기술적 지표 계산
 ├── ai/
-│   ├── judgment_engine.py   # Gemini 2.5 Flash 판단 엔진
+│   ├── judgment_engine.py   # Gemini 판단 엔진 (기본 gemini-3.1-flash-lite)
 │   └── prompt_templates.py  # 프롬프트 관리
 ├── executor/
 │   ├── order.py             # 주문 실행 + DB 저장
@@ -32,7 +32,7 @@ toss-trading/
 ## 기술 스택
 - Python 3.11+
 - pandas, numpy, pandas-ta (TA-Lib 대체)
-- google-genai (Gemini 2.5 Flash, 무료 티어 — RPD 250회 / RPM 10회)
+- google-genai (기본 모델 gemini-3.1-flash-lite, 앱 내부 한도 500회/일 · 15회/분)
 - python-telegram-bot (미구현)
 - SQLite (표준 라이브러리)
 - asyncio 기반
